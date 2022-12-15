@@ -1,23 +1,33 @@
-use crate::git::git_log;
+use crate::{commits::Commits, git::git_log};
 
-pub struct App {
-    pub height: u32,
-    pub width: u32,
-    pub history: Vec<String>,
-    pub should_quit: bool,
-    pub cursor: u32,
-    pub commits: Vec<String>,
+pub enum View {
+    Commits,
+    // Stats,
+    // Diff
 }
 
-impl<'a> App {
-    pub fn new() -> App {
-        App {
+pub struct App {
+    pub view: View,
+    pub commits: Commits,
+    pub messages: Vec<String>,
+    pub cursor: u32,
+    pub height: u32,
+    pub history: Vec<String>,
+    pub width: u32,
+    should_quit: bool,
+}
+
+impl App {
+    pub fn new() -> Self {
+        Self {
+            view: View::Commits,
+            commits: Commits::new(vec![]),
+            cursor: 0,
             height: 0,
-            width: 0,
             history: vec![],
+            messages: vec![],
             should_quit: false,
-            commits: vec![],
-            cursor: 0
+            width: 0,
         }
     }
 
@@ -25,11 +35,15 @@ impl<'a> App {
         let entries = git_log().expect("unable to load git log");
         let entry_list = entries;
         for entry in entry_list {
-            self.commits.push(entry.subject.clone())
+            self.commits.add(entry.subject.clone())
         }
     }
 
-    pub fn move_cursor_down(&mut self) {
-        self.cursor += 1;
+    pub fn quit(&mut self) {
+        self.should_quit = true;
+    }
+
+    pub fn should_quit(&self) -> bool {
+        self.should_quit
     }
 }

@@ -1,4 +1,5 @@
 pub trait CursorView {
-    fn cursor_down(&mut self);
-    fn cursor_up(&mut self);
+    type State;
+    fn cursor_down(self, state: &mut Self::State);
+    fn cursor_up(self, state: &mut Self::State);
 }
