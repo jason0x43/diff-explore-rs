@@ -1,4 +1,5 @@
 use std::{
+    fmt::{self, Display},
     sync::mpsc::{channel, Receiver, RecvError, Sender},
     thread,
 };
@@ -12,6 +13,20 @@ pub enum Key {
     Down,
     Char(char),
     Unknown,
+}
+
+impl Display for Key {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            Key::Enter => String::from("Enter"),
+            Key::Escape => String::from("Escape"),
+            Key::Up => String::from("Up"),
+            Key::Down => String::from("Down"),
+            Key::Char(char) => char.to_string(),
+            Key::Unknown => String::from("unknown"),
+        };
+        write!(f, "Key({})", name)
+    }
 }
 
 impl From<event::KeyEvent> for Key {
@@ -28,7 +43,8 @@ impl From<event::KeyEvent> for Key {
                 code: KeyCode::Up, ..
             } => Key::Up,
             KeyEvent {
-                code: KeyCode::Down, ..
+                code: KeyCode::Down,
+                ..
             } => Key::Down,
             KeyEvent {
                 code: KeyCode::Char(c),

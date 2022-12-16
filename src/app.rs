@@ -50,13 +50,14 @@ impl App {
     pub fn do_action(&mut self, key: Key) {
         match key {
             Key::Char('q') => self.quit(),
-            Key::Up => self.commits.cursor_up(),
-            Key::Down => self.commits.cursor_down(),
+            Key::Up => match self.view {
+                View::Commits => self.commits.cursor_up(),
+            },
+            Key::Down => match self.view {
+                View::Commits => self.commits.cursor_down(),
+            },
             _ => {
-                self.messages
-                    .push(format!("App has {} commits", self.commits.len()));
-                self.messages
-                    .push(format!("First: '{}'", self.commits.first()));
+                self.messages.push(format!("Unhandled: {}", key));
             }
         }
     }
