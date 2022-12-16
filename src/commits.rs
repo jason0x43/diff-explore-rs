@@ -1,13 +1,6 @@
-// use tui::{
-//     buffer::Buffer,
-//     layout::Rect,
-//     text::Spans,
-//     widgets::{List, ListItem, Widget},
-// };
-
 #[derive(Debug, Clone, Default)]
 pub struct CommitsState {
-    offset: usize,
+    // offset: usize,
     cursor: usize,
 }
 
@@ -25,10 +18,6 @@ impl Commits {
             commits,
             state: CommitsState::default(),
         }
-    }
-
-    pub fn len(&self) -> usize {
-        self.commits.len()
     }
 
     pub fn add(&mut self, commit: String) {
@@ -56,16 +45,3 @@ impl Commits {
         List::new(items)
     }
 }
-
-// impl Widget for Commits {
-//     fn render(self, area: Rect, buf: &mut Buffer) {
-//         for (i, commit) in self.commits.iter().enumerate() {
-//             buf.set_spans(
-//                 0,
-//                 i as u16,
-//                 &Spans::from(commit.clone()),
-//                 area.width,
-//             );
-//         }
-//     }
-// }
