@@ -15,6 +15,7 @@ pub struct App {
     pub history: Vec<String>,
     pub width: u32,
     should_quit: bool,
+    show_console: bool,
 }
 
 impl App {
@@ -27,6 +28,7 @@ impl App {
             history: vec![],
             messages: vec![],
             should_quit: false,
+            show_console: true,
             width: 0,
         }
     }
@@ -43,13 +45,22 @@ impl App {
         self.should_quit = true;
     }
 
+    pub fn toggle_console(&mut self) {
+        self.show_console = !self.show_console;
+    }
+
     pub fn should_quit(&self) -> bool {
         self.should_quit
+    }
+
+    pub fn should_show_console(&self) -> bool {
+        self.show_console
     }
 
     pub fn do_action(&mut self, key: Key) {
         match key {
             Key::Char('q') => self.quit(),
+            Key::Char('>') => self.toggle_console(),
             Key::Up => match self.view {
                 View::Commits => self.commits.cursor_up(),
             },

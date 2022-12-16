@@ -21,16 +21,21 @@ use crate::{
 
 /// Draw the UI
 pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &App) {
+    let constraints = if app.should_show_console() {
+        [Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()
+    } else {
+        [Constraint::Percentage(100)].as_ref()
+    };
+
     let parts = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(
-            [Constraint::Percentage(50), Constraint::Percentage(50)].as_ref(),
-        )
+        .constraints(constraints)
         .split(f.size());
 
     let content_widget = match &app.view {
         View::Commits => app.commits.to_widget(),
     };
+
     let content_title = match &app.view {
         View::Commits => "Commits",
     };
@@ -39,9 +44,11 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &App) {
         .block(Block::default().borders(Borders::ALL).title(content_title));
     f.render_widget(content, parts[0]);
 
-    let console = Paragraph::new(app.messages.join("\n"))
-        .block(Block::default().title("Console").borders(Borders::ALL));
-    f.render_widget(console, parts[1]);
+    if app.should_show_console() {
+        let console = Paragraph::new(app.messages.join("\n"))
+            .block(Block::default().title("Console").borders(Borders::ALL));
+        f.render_widget(console, parts[1]);
+    }
 }
 
 fn setup_term() -> Result<Terminal<CrosstermBackend<Stdout>>, io::Error> {
