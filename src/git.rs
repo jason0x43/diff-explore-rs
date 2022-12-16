@@ -24,7 +24,7 @@ pub fn git_log<'a>() -> Result<Vec<Commit>> {
 			  \"author_name\":\"%aN\",\
 			  \"author_email\":\"%aE\",\
 			  \"timestamp\":%at,\
-			  \"subject\":\"%f\"\
+			  \"subject\":\"%s\"\
 			},",
         )
         .output()
