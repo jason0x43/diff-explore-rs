@@ -1,6 +1,7 @@
 mod app;
 mod commits;
 mod cursor;
+mod events;
 mod git;
 mod ui;
 

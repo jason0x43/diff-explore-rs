@@ -1,5 +1,5 @@
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{
         disable_raw_mode, enable_raw_mode, EnterAlternateScreen,
@@ -14,7 +14,10 @@ use tui::{
     Frame, Terminal,
 };
 
-use crate::app::{App, View};
+use crate::{
+    app::{App, View},
+    events::{Events, InputEvent},
+};
 
 /// Draw the UI
 pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &App) {
@@ -65,22 +68,16 @@ fn restore_term(
 /// Setup the terminal and start the render loop
 pub fn start(mut app: App) -> Result<(), io::Error> {
     let mut term = setup_term()?;
+    let events = Events::new();
 
     app.load_commits();
 
     loop {
         term.draw(|f| draw(f, &app))?;
 
-        if let Event::Key(key) = event::read()? {
-            match key.code {
-                KeyCode::Char('q') => app.quit(),
-                KeyCode::Up => app.commits.cursor_up(),
-                KeyCode::Down => app.commits.cursor_down(),
-                _ => app
-                    .messages
-                    .push(format!("App has {} items", app.commits.len())),
-            }
-        }
+        match events.next().unwrap() {
+            InputEvent::Input(key) => app.do_action(key),
+        };
 
         if app.should_quit() {
             break;

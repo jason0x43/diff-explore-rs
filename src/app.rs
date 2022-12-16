@@ -1,4 +1,4 @@
-use crate::{commits::Commits, git::git_log};
+use crate::{commits::Commits, events::Key, git::git_log};
 
 pub enum View {
     Commits,
@@ -45,5 +45,19 @@ impl App {
 
     pub fn should_quit(&self) -> bool {
         self.should_quit
+    }
+
+    pub fn do_action(&mut self, key: Key) {
+        match key {
+            Key::Char('q') => self.quit(),
+            Key::Up => self.commits.cursor_up(),
+            Key::Down => self.commits.cursor_down(),
+            _ => {
+                self.messages
+                    .push(format!("App has {} commits", self.commits.len()));
+                self.messages
+                    .push(format!("First: '{}'", self.commits.first()));
+            }
+        }
     }
 }
