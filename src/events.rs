@@ -1,6 +1,6 @@
 use std::{
     fmt::{self, Display},
-    sync::mpsc::{channel, Receiver, RecvError, Sender},
+    sync::mpsc::{channel, Receiver, RecvError},
     thread,
 };
 
@@ -67,7 +67,6 @@ pub enum InputEvent {
 
 pub struct Events {
     rx: Receiver<InputEvent>,
-    _tx: Sender<InputEvent>,
 }
 
 impl Events {
@@ -82,7 +81,7 @@ impl Events {
             }
         });
 
-        Events { rx, _tx: tx }
+        Events { rx }
     }
 
     pub fn next(&self) -> Result<InputEvent, RecvError> {
