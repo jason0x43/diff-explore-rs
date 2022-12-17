@@ -20,7 +20,7 @@ use crate::{
 };
 
 /// Draw the UI
-pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &App) {
+pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
     let constraints = if app.should_show_console() {
         [Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()
     } else {
@@ -32,8 +32,11 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &App) {
         .constraints(constraints)
         .split(f.size());
 
+    let mut content_rect = parts[0].clone();
+    content_rect.height -= 2;
+
     let content_widget = match &app.view {
-        View::Commits => app.commits.to_widget(),
+        View::Commits => app.commits.to_widget(content_rect),
     };
 
     let content_title = match &app.view {
@@ -100,7 +103,7 @@ pub fn start(mut app: App) -> Result<(), io::Error> {
     app.load_commits();
 
     loop {
-        term.draw(|f| draw(f, &app))?;
+        term.draw(|f| draw(f, &mut app))?;
 
         match events.next().unwrap() {
             InputEvent::Input(key) => app.do_action(key),
