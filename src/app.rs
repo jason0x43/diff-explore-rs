@@ -37,7 +37,7 @@ impl App {
         let entries = git_log().expect("unable to load git log");
         let entry_list = entries;
         for entry in entry_list {
-            self.commits.add(entry.subject.clone())
+            self.commits.add(entry)
         }
     }
 

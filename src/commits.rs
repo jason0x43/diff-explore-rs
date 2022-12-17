@@ -1,16 +1,16 @@
 use std::collections::HashSet;
 
 use tui::{
-    layout::Rect,
+    layout::{Constraint, Rect},
     style::{Color, Style},
-    widgets::{List, ListItem},
+    widgets::{Cell, Row, Table},
 };
 
-use crate::messages::Message;
+use crate::{git::Commit, messages::Message};
 
 #[derive(Debug, Clone)]
 pub struct Commits {
-    commits: Vec<String>,
+    commits: Vec<Commit>,
     cursor: usize,
     offset: usize,
     marks: HashSet<usize>,
@@ -18,7 +18,7 @@ pub struct Commits {
 }
 
 impl Commits {
-    pub fn new(commits: Vec<String>) -> Commits {
+    pub fn new(commits: Vec<Commit>) -> Commits {
         Commits {
             commits,
             cursor: 0,
@@ -28,7 +28,7 @@ impl Commits {
         }
     }
 
-    pub fn add(&mut self, commit: String) {
+    pub fn add(&mut self, commit: Commit) {
         self.commits.push(commit);
     }
 
@@ -52,8 +52,9 @@ impl Commits {
         }
     }
 
-    pub fn to_widget<'a>(&mut self, r: Rect) -> List<'a> {
+    pub fn to_widget<'a>(&mut self, r: Rect) -> Table<'a> {
         let height = r.height as usize;
+        let width = r.width as usize;
 
         if self.cursor > self.offset {
             if self.cursor - self.offset > height - 1 {
@@ -62,7 +63,7 @@ impl Commits {
         } else {
             self.offset = self.cursor
         }
-        
+
         let start = if self.cursor > self.offset {
             self.offset
         } else {
@@ -75,20 +76,38 @@ impl Commits {
             self.commits.len()
         };
 
-        let items: Vec<ListItem> = self.commits[start..end]
-            .iter()
-            .enumerate()
-            .map(|(i, c)| {
-                let real_i = i + start;
-                let style = if real_i == self.cursor {
-                    Style::default().bg(Color::Indexed(0))
-                } else {
-                    Style::default()
-                };
-                let prefix = if self.marks.contains(&real_i) { ">" } else { " " };
-                ListItem::new(format!("{}{}", prefix, c)).style(style)
-            })
-            .collect();
-        List::new(items)
+        Table::new(self.commits[start..end].iter().enumerate().map(|(i, c)| {
+            let real_i = i + start;
+
+            let prefix = if self.marks.contains(&real_i) {
+                ">"
+            } else {
+                " "
+            };
+
+            let mut subject = c.subject.clone();
+            let last_col = width - 11;
+            if subject.len() > last_col - 1 {
+                subject = format!("{}...", &subject[0..last_col - 5]);
+            }
+
+            let mut row = Row::new(vec![
+                Cell::from(prefix),
+                Cell::from(c.commit.clone())
+                    .style(Style::default().fg(Color::Indexed(5))),
+                Cell::from(subject),
+            ]);
+
+            if real_i == self.cursor {
+                row = row.style(Style::default().bg(Color::Indexed(0)));
+            }
+
+            row
+        }))
+        .widths(&[
+            Constraint::Length(1),
+            Constraint::Length(8),
+            Constraint::Percentage(100),
+        ])
     }
 }
