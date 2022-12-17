@@ -11,6 +11,7 @@ pub enum Key {
     Escape,
     Up,
     Down,
+    Space,
     Char(char),
     Unknown,
 }
@@ -22,6 +23,7 @@ impl Display for Key {
             Key::Escape => String::from("Escape"),
             Key::Up => String::from("Up"),
             Key::Down => String::from("Down"),
+            Key::Space => String::from("Space"),
             Key::Char(char) => char.to_string(),
             Key::Unknown => String::from("unknown"),
         };
@@ -46,6 +48,10 @@ impl From<event::KeyEvent> for Key {
                 code: KeyCode::Down,
                 ..
             } => Key::Down,
+            KeyEvent {
+                code: KeyCode::Char(' '),
+                ..
+            } => Key::Space,
             KeyEvent {
                 code: KeyCode::Char(c),
                 ..

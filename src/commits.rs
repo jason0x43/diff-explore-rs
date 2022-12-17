@@ -1,8 +1,4 @@
-#[derive(Debug, Clone, Default)]
-pub struct CommitsState {
-    // offset: usize,
-    cursor: usize,
-}
+use std::collections::HashSet;
 
 use tui::{
     style::{Color, Style},
@@ -12,14 +8,16 @@ use tui::{
 #[derive(Debug, Clone)]
 pub struct Commits {
     commits: Vec<String>,
-    state: CommitsState,
+    cursor: usize,
+    marks: HashSet<usize>,
 }
 
 impl Commits {
     pub fn new(commits: Vec<String>) -> Commits {
         Commits {
             commits,
-            state: CommitsState::default(),
+            cursor: 0,
+            marks: HashSet::new(),
         }
     }
 
@@ -28,14 +26,22 @@ impl Commits {
     }
 
     pub fn cursor_down(&mut self) {
-        if self.state.cursor + 1 < self.commits.len() {
-            self.state.cursor += 1;
+        if self.cursor + 1 < self.commits.len() {
+            self.cursor += 1;
         }
     }
 
     pub fn cursor_up(&mut self) {
-        if self.state.cursor > 0 {
-            self.state.cursor -= 1;
+        if self.cursor > 0 {
+            self.cursor -= 1;
+        }
+    }
+
+    pub fn cursor_mark(&mut self) {
+        if self.marks.contains(&self.cursor) {
+            self.marks.remove(&self.cursor);
+        } else {
+            self.marks.insert(self.cursor);
         }
     }
 
@@ -45,12 +51,17 @@ impl Commits {
             .iter()
             .enumerate()
             .map(|(i, c)| {
-                let style = if i == self.state.cursor {
+                let style = if i == self.cursor {
                     Style::default().bg(Color::Indexed(0))
                 } else {
                     Style::default()
                 };
-                ListItem::new(format!(" {}", c)).style(style)
+                let prefix = if self.marks.contains(&i) {
+                    ">"
+                } else {
+                    " "
+                };
+                ListItem::new(format!("{}{}", prefix, c)).style(style)
             })
             .collect();
         List::new(items)

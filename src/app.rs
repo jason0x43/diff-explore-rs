@@ -28,7 +28,7 @@ impl App {
             history: vec![],
             messages: vec![],
             should_quit: false,
-            show_console: true,
+            show_console: false,
             width: 0,
         }
     }
@@ -61,6 +61,11 @@ impl App {
         match key {
             Key::Char('q') => self.quit(),
             Key::Char('>') => self.toggle_console(),
+            Key::Space => match self.view {
+                View::Commits => {
+                    self.commits.cursor_mark();
+                }
+            },
             Key::Up | Key::Char('k') => match self.view {
                 View::Commits => self.commits.cursor_up(),
             },
