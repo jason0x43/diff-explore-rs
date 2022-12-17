@@ -107,6 +107,7 @@ pub fn start(mut app: App) -> Result<(), io::Error> {
 
         match events.next().unwrap() {
             InputEvent::Input(key) => app.do_action(key),
+            InputEvent::Resize => {}
         };
 
         if app.should_quit() {

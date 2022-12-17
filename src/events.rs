@@ -63,6 +63,7 @@ impl From<event::KeyEvent> for Key {
 
 pub enum InputEvent {
     Input(Key),
+    Resize,
 }
 
 pub struct Events {
@@ -75,9 +76,17 @@ impl Events {
 
         let event_tx = tx.clone();
         thread::spawn(move || loop {
-            if let Event::Key(key) = event::read().unwrap() {
-                let key = Key::from(key);
-                event_tx.send(InputEvent::Input(key)).unwrap();
+            if let Ok(event) = event::read() {
+                match event {
+                    Event::Key(key) => {
+                        let key = Key::from(key);
+                        event_tx.send(InputEvent::Input(key)).unwrap();
+                    }
+                    Event::Resize(_, _) => {
+                        event_tx.send(InputEvent::Resize).unwrap();
+                    }
+                    _ => {}
+                }
             }
         });
 
