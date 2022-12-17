@@ -4,7 +4,10 @@ pub struct CommitsState {
     cursor: usize,
 }
 
-use tui::widgets::{List, ListItem};
+use tui::{
+    style::{Color, Style},
+    widgets::{List, ListItem},
+};
 
 #[derive(Debug, Clone)]
 pub struct Commits {
@@ -40,7 +43,15 @@ impl Commits {
         let items: Vec<ListItem> = self
             .commits
             .iter()
-            .map(|c| ListItem::new(c.clone()))
+            .enumerate()
+            .map(|(i, c)| {
+                let style = if i == self.state.cursor {
+                    Style::default().bg(Color::Indexed(0))
+                } else {
+                    Style::default()
+                };
+                ListItem::new(format!(" {}", c)).style(style)
+            })
             .collect();
         List::new(items)
     }

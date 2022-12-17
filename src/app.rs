@@ -61,10 +61,10 @@ impl App {
         match key {
             Key::Char('q') => self.quit(),
             Key::Char('>') => self.toggle_console(),
-            Key::Up => match self.view {
+            Key::Up | Key::Char('k') => match self.view {
                 View::Commits => self.commits.cursor_up(),
             },
-            Key::Down => match self.view {
+            Key::Down | Key::Char('j') => match self.view {
                 View::Commits => self.commits.cursor_down(),
             },
             _ => {
