@@ -3,6 +3,7 @@ mod commits;
 mod cursor;
 mod events;
 mod git;
+mod messages;
 mod ui;
 
 use app::App;

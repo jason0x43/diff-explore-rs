@@ -45,7 +45,27 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &App) {
     f.render_widget(content, parts[0]);
 
     if app.should_show_console() {
-        let console = Paragraph::new(app.messages.join("\n"))
+        let console_height = parts[1].height as usize - 2;
+        let mut messages = app.messages.clone();
+        for s in app.commits.messages.iter() {
+            messages.push(s.clone());
+        }
+        messages.sort();
+
+        let start = if messages.len() > console_height {
+            messages.len() - console_height
+        } else {
+            0
+        };
+        let end = if start + console_height < messages.len() {
+            start + console_height
+        } else {
+            messages.len()
+        };
+        let lines: Vec<String> =
+            messages[start..end].iter().map(|a| a.content()).collect();
+
+        let console = Paragraph::new(lines.join("\n"))
             .block(Block::default().title("Console").borders(Borders::ALL));
         f.render_widget(console, parts[1]);
     }

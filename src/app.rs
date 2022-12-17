@@ -1,4 +1,4 @@
-use crate::{commits::Commits, events::Key, git::git_log};
+use crate::{commits::Commits, events::Key, git::git_log, messages::Message};
 
 pub enum View {
     Commits,
@@ -9,7 +9,7 @@ pub enum View {
 pub struct App {
     pub view: View,
     pub commits: Commits,
-    pub messages: Vec<String>,
+    pub messages: Vec<Message>,
     pub cursor: u32,
     pub height: u32,
     pub history: Vec<String>,
@@ -73,7 +73,7 @@ impl App {
                 View::Commits => self.commits.cursor_down(),
             },
             _ => {
-                self.messages.push(format!("Unhandled: {}", key));
+                self.messages.push(Message::new(format!("Unhandled: {}", key)));
             }
         }
     }
