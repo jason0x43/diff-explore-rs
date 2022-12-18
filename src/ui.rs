@@ -17,7 +17,7 @@ use tui::{
 use crate::{
     app::{App, View},
     events::{Events, InputEvent},
-    util::HasDimensions,
+    commits::CommitsList,
 };
 
 /// Draw the UI
@@ -36,7 +36,7 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
     let content_widget = match &app.view {
         View::Commits => {
             // Subtract the borders from the content rect
-            app.commits.to_widget(parts[0].resized_dimensions(-2, -2))
+            CommitsList::new(&mut app.commits)
         }
     };
 
