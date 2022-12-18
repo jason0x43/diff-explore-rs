@@ -72,6 +72,12 @@ impl App {
             Key::Down | Key::Char('j') => match self.view {
                 View::Commits => self.commits.cursor_down(),
             },
+            Key::CtrlU => match self.view {
+                View::Commits => self.commits.cursor_page_up(),
+            },
+            Key::CtrlF => match self.view {
+                View::Commits => self.commits.cursor_page_down(),
+            },
             _ => {
                 self.messages.push(Message::new(format!("Unhandled: {}", key)));
             }

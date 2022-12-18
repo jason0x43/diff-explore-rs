@@ -1,4 +1,7 @@
-use std::collections::HashSet;
+use std::{
+    cmp::{max, min},
+    collections::HashSet,
+};
 
 use chrono::{Datelike, NaiveDateTime, Timelike, Utc};
 use tui::{
@@ -18,6 +21,7 @@ pub struct Commits {
     // offset: usize,
     marks: HashSet<usize>,
     list_state: ListState,
+    list_height: usize,
     pub messages: Vec<Message>,
 }
 
@@ -31,6 +35,7 @@ impl Commits {
             // offset: 0,
             marks: HashSet::new(),
             list_state: state,
+            list_height: 0,
             messages: vec![],
         }
     }
@@ -44,17 +49,26 @@ impl Commits {
     }
 
     pub fn cursor_down(&mut self) {
-        let cursor = self.cursor();
-        if cursor < self.commits.len() - 1 {
-            self.list_state.select(Some(cursor + 1));
-        }
+        let cursor = min(self.cursor() + 1, self.commits.len() - 1);
+        self.list_state.select(Some(cursor));
+    }
+
+    pub fn cursor_page_down(&mut self) {
+        let cursor =
+            min(self.cursor() + self.list_height, self.commits.len() - 1);
+        self.list_state.select(Some(cursor));
     }
 
     pub fn cursor_up(&mut self) {
         let cursor = self.cursor();
-        if cursor > 0 {
-            self.list_state.select(Some(cursor - 1));
-        }
+        let delta = min(self.cursor(), 1);
+        self.list_state.select(Some(cursor - delta));
+    }
+
+    pub fn cursor_page_up(&mut self) {
+        let cursor = self.cursor();
+        let delta = min(cursor, self.list_height);
+        self.list_state.select(Some(cursor - delta));
     }
 
     pub fn cursor_mark(&mut self) {
@@ -90,6 +104,9 @@ impl<'a> CommitsList<'a> {
 impl<'a> Widget for CommitsList<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let width = area.width as usize;
+        let height = area.height as usize;
+
+        self.commits.list_height = height;
 
         let items: Vec<ListItem> = self
             .commits
