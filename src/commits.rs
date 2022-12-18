@@ -1,12 +1,13 @@
 use std::collections::HashSet;
 
 use tui::{
-    layout::{Constraint, Rect},
+    layout::Constraint,
     style::{Color, Style},
     widgets::{Cell, Row, Table},
 };
 
-use crate::{git::Commit, messages::Message};
+use crate::util::Truncatable;
+use crate::{git::Commit, messages::Message, util::Dimensions};
 
 #[derive(Debug, Clone)]
 pub struct Commits {
@@ -52,9 +53,9 @@ impl Commits {
         }
     }
 
-    pub fn to_widget<'a>(&mut self, r: Rect) -> Table<'a> {
-        let height = r.height as usize;
-        let width = r.width as usize;
+    pub fn to_widget<'a>(&mut self, d: Dimensions) -> Table<'a> {
+        let height = d.height as usize;
+        let width = d.width as usize;
 
         if self.cursor > self.offset {
             if self.cursor - self.offset > height - 1 {
@@ -85,11 +86,10 @@ impl Commits {
                 " "
             };
 
-            let mut subject = c.subject.clone();
-            let last_col = width - 11;
-            if subject.len() > last_col - 1 {
-                subject = format!("{}...", &subject[0..last_col - 5]);
-            }
+            // Truncate the subject if it's longer than the available space, which is (width - (sum
+            // of column widths) - (sum of column gaps))
+            let last_col = width - (8 + 1) - (1 + 1);
+            let subject = c.subject.ellipses(last_col);
 
             let mut row = Row::new(vec![
                 Cell::from(prefix),
@@ -107,6 +107,8 @@ impl Commits {
         .widths(&[
             Constraint::Length(1),
             Constraint::Length(8),
+            // Percentage has a lower priority than Length, so Percentage(100) will consume any
+            // remaining space
             Constraint::Percentage(100),
         ])
     }

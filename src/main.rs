@@ -5,6 +5,7 @@ mod events;
 mod git;
 mod messages;
 mod ui;
+mod util;
 
 use app::App;
 use std::{
