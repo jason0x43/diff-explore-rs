@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use chrono::{Datelike, NaiveDateTime, Timelike, Utc};
 use tui::{
     layout::Constraint,
     style::{Color, Style},
@@ -81,23 +82,46 @@ impl Commits {
             let real_i = i + start;
 
             let prefix = if self.marks.contains(&real_i) {
-                ">"
+                "▶"
             } else {
                 " "
             };
 
+            let ctime = c.timestamp;
+            let time =
+                NaiveDateTime::from_timestamp_opt(ctime as i64, 0).unwrap();
+            let now = Utc::now().naive_utc();
+            let age = if time.year() != now.year() {
+                self.messages.push(Message::new(format!("time.year: {}", time.year())));
+                self.messages.push(Message::new(format!("now.year: {}", now.year())));
+                format!("{:>2}Y", now.year() - time.year())
+            } else if time.month() != now.month() {
+                format!("{:>2}M", now.month() - time.month())
+            } else if time.day() != now.day() {
+                format!("{:>2}D", now.day() - time.day())
+            } else if time.hour() != now.hour() {
+                format!("{:>2}h", now.hour() - time.hour())
+            } else if time.minute() != now.minute() {
+                format!("{:>2}m", now.minute() - time.minute())
+            } else {
+                format!("{:>2}s", now.second() - time.second())
+            };
+
             // Truncate the subject if it's longer than the available space, which is (width - (sum
             // of column widths) - (sum of column gaps))
-            let last_col = width - (8 + 1) - (1 + 1);
+            let last_col = width - (1 + 8 + 3) - (1 + 1 + 1);
             let subject = c.subject.ellipses(last_col);
 
             let mut row = Row::new(vec![
                 Cell::from(prefix),
                 Cell::from(c.commit.clone())
                     .style(Style::default().fg(Color::Indexed(5))),
+                Cell::from(age)
+                    .style(Style::default().fg(Color::Indexed(4))),
                 Cell::from(subject),
             ]);
 
+            // Highlight the cursor row
             if real_i == self.cursor {
                 row = row.style(Style::default().bg(Color::Indexed(0)));
             }
@@ -107,6 +131,7 @@ impl Commits {
         .widths(&[
             Constraint::Length(1),
             Constraint::Length(8),
+            Constraint::Length(3),
             // Percentage has a lower priority than Length, so Percentage(100) will consume any
             // remaining space
             Constraint::Percentage(100),
