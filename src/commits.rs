@@ -1,7 +1,4 @@
-use std::{
-    cmp::{max, min},
-    collections::HashSet,
-};
+use std::{cmp::min, collections::HashSet};
 
 use chrono::{Datelike, NaiveDateTime, Timelike, Utc};
 use tui::{
