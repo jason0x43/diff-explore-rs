@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use chrono::{Datelike, NaiveDateTime, Timelike, Utc};
 use list_helper_core::{ListCursor, ListData};
-use list_helper_macro::ListCursor;
+use list_helper_macro::{ListCursor, list_data};
 use tui::{
     buffer::Buffer,
     layout::Rect,
@@ -14,9 +14,9 @@ use tui::{
 use crate::util::Truncatable;
 use crate::{git::Commit, messages::Message};
 
+#[list_data]
 #[derive(Debug, Clone, ListCursor)]
 pub struct Commits {
-    list: ListData,
     commits: Vec<Commit>,
     marks: HashSet<usize>,
     pub messages: Vec<Message>,
@@ -24,13 +24,8 @@ pub struct Commits {
 
 impl Commits {
     pub fn new(commits: Vec<Commit>) -> Commits {
-        let mut state = ListState::default();
-        state.select(Some(0));
-
-        let len = commits.len();
-
         Commits {
-            list: ListData::new(len),
+            list: ListData::new(commits.len()),
             commits,
             marks: HashSet::new(),
             messages: vec![],
@@ -39,7 +34,7 @@ impl Commits {
 
     pub fn add(&mut self, commit: Commit) {
         self.commits.push(commit);
-        self.list.set_count(self.commits.len());
+        self.set_list_count(self.commits.len());
     }
 
     pub fn cursor_mark(&mut self) {
@@ -77,7 +72,7 @@ impl<'a> Widget for CommitsList<'a> {
         let width = area.width as usize;
         let height = area.height as usize;
 
-        self.commits.list.set_height(height);
+        self.commits.set_list_height(height);
 
         let items: Vec<ListItem> = self
             .commits
@@ -150,7 +145,7 @@ impl<'a> Widget for CommitsList<'a> {
             list,
             area,
             buf,
-            &mut self.commits.list.mut_state(),
+            &mut self.commits.list_state(),
         );
     }
 }
