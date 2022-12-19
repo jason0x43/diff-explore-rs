@@ -117,6 +117,12 @@ impl<'a> Widget for CommitsList<'a> {
                     " "
                 };
 
+                // Determine column widths
+                let cols = [1, 8, 3, 20];
+                let sized_cols: usize = cols.iter().sum();
+                let all_gaps: usize = cols.len();
+                let last_col = width - sized_cols - all_gaps;
+
                 let ctime = c.timestamp;
                 let time =
                     NaiveDateTime::from_timestamp_opt(ctime as i64, 0).unwrap();
@@ -135,20 +141,26 @@ impl<'a> Widget for CommitsList<'a> {
                     format!("{:>2}s", now.second() - time.second())
                 };
 
+                let author = c.author_name.ellipses(cols[3]);
+
                 // Truncate the subject if it's longer than the available space, which is (width -
                 // (sum of column widths) - (sum of column gaps))
-                let last_col = width - (1 + 8 + 3) - (1 + 1 + 1);
                 let subject = c.subject.ellipses(last_col);
 
                 let row = ListItem::new(Spans::from(vec![
                     Span::from(prefix),
                     Span::from(" "),
                     Span::styled(
-                        format!("{}", &c.commit[..8]),
+                        format!("{}", &c.commit[..cols[2]]),
                         Style::default().fg(Color::Indexed(5)),
                     ),
                     Span::from(" "),
                     Span::styled(age, Style::default().fg(Color::Indexed(4))),
+                    Span::from(" "),
+                    Span::styled(
+                        format!("{:<20}", author),
+                        Style::default().fg(Color::Indexed(2)),
+                    ),
                     Span::from(" "),
                     Span::from(subject),
                 ]));
