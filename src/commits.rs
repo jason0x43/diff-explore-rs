@@ -125,7 +125,7 @@ impl<'a> Widget for CommitsList<'a> {
                     Span::from(prefix),
                     Span::from(" "),
                     Span::styled(
-                        format!("{}", &c.commit[..cols[2]]),
+                        format!("{}", &c.commit[..cols[1]]),
                         Style::default().fg(Color::Indexed(5)),
                     ),
                     Span::from(" "),
