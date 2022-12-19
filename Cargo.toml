@@ -11,3 +11,5 @@ serde_json = "1.0"
 tui = "0.19"
 crossterm = "0.25"
 chrono = "0.4.23"
+list_helper_macro = { path = "list_helper/macro" }
+list_helper_core = { path = "list_helper/core" }

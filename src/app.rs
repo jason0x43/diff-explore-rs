@@ -1,4 +1,6 @@
-use crate::{commits::Commits, events::Key, git::git_log, messages::Message};
+use crate::{ commits::Commits, events::Key, git::git_log, messages::Message, };
+
+use list_helper_core::ListCursor;
 
 pub enum View {
     Commits,
@@ -79,7 +81,8 @@ impl App {
                 View::Commits => self.commits.cursor_page_down(),
             },
             _ => {
-                self.messages.push(Message::new(format!("Unhandled: {}", key)));
+                self.messages
+                    .push(Message::new(format!("Unhandled: {}", key)));
             }
         }
     }

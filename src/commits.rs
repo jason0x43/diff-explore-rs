@@ -1,6 +1,8 @@
-use std::{cmp::min, collections::HashSet};
+use std::collections::HashSet;
 
 use chrono::{Datelike, NaiveDateTime, Timelike, Utc};
+use list_helper_core::{ListCursor, ListData};
+use list_helper_macro::ListCursor;
 use tui::{
     buffer::Buffer,
     layout::Rect,
@@ -12,13 +14,11 @@ use tui::{
 use crate::util::Truncatable;
 use crate::{git::Commit, messages::Message};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, ListCursor)]
 pub struct Commits {
+    list: ListData,
     commits: Vec<Commit>,
-    // offset: usize,
     marks: HashSet<usize>,
-    list_state: ListState,
-    list_height: usize,
     pub messages: Vec<Message>,
 }
 
@@ -27,45 +27,19 @@ impl Commits {
         let mut state = ListState::default();
         state.select(Some(0));
 
+        let len = commits.len();
+
         Commits {
+            list: ListData::new(len),
             commits,
-            // offset: 0,
             marks: HashSet::new(),
-            list_state: state,
-            list_height: 0,
             messages: vec![],
         }
     }
 
-    fn cursor(&self) -> usize {
-        self.list_state.selected().unwrap_or(0)
-    }
-
     pub fn add(&mut self, commit: Commit) {
         self.commits.push(commit);
-    }
-
-    pub fn cursor_down(&mut self) {
-        let cursor = min(self.cursor() + 1, self.commits.len() - 1);
-        self.list_state.select(Some(cursor));
-    }
-
-    pub fn cursor_page_down(&mut self) {
-        let cursor =
-            min(self.cursor() + self.list_height, self.commits.len() - 1);
-        self.list_state.select(Some(cursor));
-    }
-
-    pub fn cursor_up(&mut self) {
-        let cursor = self.cursor();
-        let delta = min(self.cursor(), 1);
-        self.list_state.select(Some(cursor - delta));
-    }
-
-    pub fn cursor_page_up(&mut self) {
-        let cursor = self.cursor();
-        let delta = min(cursor, self.list_height);
-        self.list_state.select(Some(cursor - delta));
+        self.list.set_count(self.commits.len());
     }
 
     pub fn cursor_mark(&mut self) {
@@ -103,7 +77,7 @@ impl<'a> Widget for CommitsList<'a> {
         let width = area.width as usize;
         let height = area.height as usize;
 
-        self.commits.list_height = height;
+        self.commits.list.set_height(height);
 
         let items: Vec<ListItem> = self
             .commits
@@ -172,6 +146,11 @@ impl<'a> Widget for CommitsList<'a> {
         let list = List::new(items)
             .highlight_style(Style::default().bg(Color::Indexed(0)))
             .block(self.block.unwrap());
-        StatefulWidget::render(list, area, buf, &mut self.commits.list_state);
+        StatefulWidget::render(
+            list,
+            area,
+            buf,
+            &mut self.commits.list.mut_state(),
+        );
     }
 }
