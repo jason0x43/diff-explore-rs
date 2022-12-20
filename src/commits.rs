@@ -1,8 +1,6 @@
-use std::collections::HashSet;
-
 use chrono::{Datelike, NaiveDateTime, Timelike, Utc};
-use list_helper_core::{ListCursor, ListData};
-use list_helper_macro::{list_data, ListCursor};
+use list_helper_core::{ListCursor, ListData, HasListCount};
+use list_helper_macro::ListCursor;
 use tui::{
     buffer::Buffer,
     layout::Rect,
@@ -11,37 +9,72 @@ use tui::{
     widgets::{Block, List, ListItem, ListState, StatefulWidget, Widget},
 };
 
-use crate::git::Commit;
-use crate::util::Truncatable;
+use crate::git::{Commit, CommitRange};
+use crate::{util::Truncatable, widget::WidgetWithBlock};
 
-#[list_data]
 #[derive(Debug, Clone, ListCursor)]
 pub struct Commits {
+    list: ListData,
     commits: Vec<Commit>,
-    marks: HashSet<usize>,
+    mark: Option<usize>,
+}
+
+impl HasListCount for Commits {
+    fn list_count(&self) -> usize {
+        self.commits.len()
+    }
 }
 
 impl Commits {
-    pub fn new(commits: Vec<Commit>) -> Commits {
+    pub fn new() -> Commits {
         Commits {
-            list: ListData::new(commits.len()),
-            commits,
-            marks: HashSet::new(),
+            list: ListData::new(),
+            commits: vec![],
+            mark: Option::None,
         }
     }
 
     pub fn add(&mut self, commit: Commit) {
         self.commits.push(commit);
-        self.set_list_count(self.commits.len());
     }
 
     pub fn cursor_mark(&mut self) {
         let cursor = self.cursor();
-        if self.marks.contains(&cursor) {
-            self.marks.remove(&cursor);
-        } else {
-            self.marks.insert(cursor);
+        match self.mark {
+            Option::None => {
+                self.mark = Option::Some(cursor);
+            }
+            _ => {
+                self.mark = Option::None;
+            }
         }
+    }
+
+    pub fn get_range(&self) -> CommitRange {
+        let cursor = self.cursor();
+        let c = &self.commits;
+        let start = match self.mark {
+            Option::Some(mark) => {
+                if mark > cursor {
+                    c[mark].commit.clone()
+                } else {
+                    c[cursor].commit.clone()
+                }
+            }
+            _ => c[cursor].commit.clone(),
+        };
+        let end = match self.mark {
+            Option::Some(mark) => {
+                if mark > cursor {
+                    Option::Some(c[cursor].commit.clone())
+                } else {
+                    Option::Some(c[mark].commit.clone())
+                }
+            }
+            _ => Option::None,
+        };
+
+        CommitRange { start, end }
     }
 }
 
@@ -58,10 +91,11 @@ impl<'a> CommitsList<'a> {
             block: None,
         }
     }
+}
 
-    pub fn block(mut self, block: Block<'a>) -> CommitsList<'a> {
+impl<'a> WidgetWithBlock<'a> for CommitsList<'a> {
+    fn block(&mut self, block: Block<'a>) {
         self.block = Some(block);
-        self
     }
 }
 
@@ -78,10 +112,15 @@ impl<'a> Widget for CommitsList<'a> {
             .iter()
             .enumerate()
             .map(|(i, c)| {
-                let prefix = if self.commits.marks.contains(&i) {
-                    "▶"
-                } else {
-                    " "
+                let prefix = match self.commits.mark {
+                    Option::Some(mark) => {
+                        if mark == i {
+                            "▶"
+                        } else {
+                            " "
+                        }
+                    }
+                    _ => " ",
                 };
 
                 // Determine column widths

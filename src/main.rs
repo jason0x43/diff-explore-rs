@@ -4,8 +4,10 @@ mod console;
 mod cursor;
 mod events;
 mod git;
+mod stats;
 mod ui;
 mod util;
+mod widget;
 
 use app::App;
 use std::{

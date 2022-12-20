@@ -10,24 +10,24 @@ pub struct ListData {
 }
 
 impl ListData {
-    pub fn new(count: usize) -> ListData {
+    pub fn new() -> ListData {
         let mut state = ListState::default();
         state.select(Some(0));
 
         ListData {
             state,
             height: 0,
-            count,
+            count: 0,
         }
     }
 }
 
-pub trait ListCursor {
-    fn list_state(&mut self) -> &mut ListState;
-
+pub trait HasListCount {
     fn list_count(&self) -> usize;
+}
 
-    fn set_list_count(&mut self, count: usize);
+pub trait ListCursor: HasListCount {
+    fn list_state(&mut self) -> &mut ListState;
 
     fn list_height(&self) -> usize;
 
@@ -36,23 +36,35 @@ pub trait ListCursor {
     fn cursor(&self) -> usize;
 
     fn cursor_down(&mut self) {
+        if self.list_count() == 0 {
+            return
+        }
         let cursor = min(self.cursor() + 1, self.list_count() - 1);
         self.list_state().select(Some(cursor));
     }
 
     fn cursor_page_down(&mut self) {
+        if self.list_count() == 0 {
+            return
+        }
         let cursor =
             min(self.cursor() + self.list_height(), self.list_count() - 1);
         self.list_state().select(Some(cursor));
     }
 
     fn cursor_up(&mut self) {
+        if self.list_count() == 0 {
+            return
+        }
         let cursor = self.cursor();
         let delta = min(self.cursor(), 1);
         self.list_state().select(Some(cursor - delta));
     }
 
     fn cursor_page_up(&mut self) {
+        if self.list_count() == 0 {
+            return
+        }
         let cursor = self.cursor();
         let delta = min(cursor, self.list_height());
         self.list_state().select(Some(cursor - delta));

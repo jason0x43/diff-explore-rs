@@ -12,8 +12,7 @@ pub enum Key {
     Up,
     Down,
     Space,
-    CtrlU,
-    CtrlF,
+    Ctrl(char),
     Char(char),
     Unknown,
 }
@@ -27,8 +26,7 @@ impl Display for Key {
             Key::Down => String::from("Down"),
             Key::Space => String::from("Space"),
             Key::Char(char) => char.to_string(),
-            Key::CtrlU => String::from("Ctrl+U"),
-            Key::CtrlF => String::from("Ctrl+F"),
+            Key::Ctrl(char) => format!("Ctrl+{}", char),
             Key::Unknown => String::from("unknown"),
         };
         write!(f, "Key({})", name)
@@ -38,6 +36,11 @@ impl Display for Key {
 impl From<event::KeyEvent> for Key {
     fn from(key_event: KeyEvent) -> Key {
         match key_event {
+            KeyEvent {
+                code: KeyCode::Char(c),
+                modifiers: event::KeyModifiers::CONTROL,
+                ..
+            } => Key::Ctrl(c),
             KeyEvent {
                 code: KeyCode::Esc, ..
             } => Key::Escape,
@@ -52,16 +55,6 @@ impl From<event::KeyEvent> for Key {
                 code: KeyCode::Down,
                 ..
             } => Key::Down,
-            KeyEvent {
-                code: KeyCode::Char('u'),
-                modifiers: event::KeyModifiers::CONTROL,
-                ..
-            } => Key::CtrlU,
-            KeyEvent {
-                code: KeyCode::Char('f'),
-                modifiers: event::KeyModifiers::CONTROL,
-                ..
-            } => Key::CtrlF,
             KeyEvent {
                 code: KeyCode::Char(' '),
                 ..

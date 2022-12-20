@@ -19,6 +19,8 @@ use crate::{
     commits::CommitsList,
     console::get_messages,
     events::{Events, InputEvent},
+    stats::StatsList,
+    widget::RenderBorderedWidget,
 };
 
 /// Draw the UI
@@ -34,20 +36,18 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
         .constraints(constraints)
         .split(f.size());
 
-    let content_widget = match &app.view {
+    let content_rect = parts[0];
+
+    match &app.view {
         View::Commits => {
-            // Subtract the borders from the content rect
-            CommitsList::new(&mut app.commits)
+            let w = CommitsList::new(&mut app.commits);
+            f.draw_widget(w, "Commits", content_rect);
+        }
+        View::Stats => {
+            let w = StatsList::new(&mut app.stats);
+            f.draw_widget(w, "Stats", content_rect);
         }
     };
-
-    let content_title = match &app.view {
-        View::Commits => "Commits",
-    };
-
-    let content = content_widget
-        .block(Block::default().borders(Borders::ALL).title(content_title));
-    f.render_widget(content, parts[0]);
 
     if app.should_show_console() {
         let console_height = parts[1].height as usize - 2;
