@@ -1,9 +1,9 @@
 mod app;
 mod commits;
+mod console;
 mod cursor;
 mod events;
 mod git;
-mod messages;
 mod ui;
 mod util;
 

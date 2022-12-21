@@ -1,4 +1,4 @@
-use crate::{ commits::Commits, events::Key, git::git_log, messages::Message, };
+use crate::{ commits::Commits, events::Key, git::git_log, console::console_log };
 
 use list_helper_core::ListCursor;
 
@@ -11,7 +11,6 @@ pub enum View {
 pub struct App {
     pub view: View,
     pub commits: Commits,
-    pub messages: Vec<Message>,
     pub cursor: u32,
     pub height: u32,
     pub history: Vec<String>,
@@ -28,7 +27,6 @@ impl App {
             cursor: 0,
             height: 0,
             history: vec![],
-            messages: vec![],
             should_quit: false,
             show_console: false,
             width: 0,
@@ -81,8 +79,7 @@ impl App {
                 View::Commits => self.commits.cursor_page_down(),
             },
             _ => {
-                self.messages
-                    .push(Message::new(format!("Unhandled: {}", key)));
+                console_log(&format!("Unhandled: {}", key));
             }
         }
     }

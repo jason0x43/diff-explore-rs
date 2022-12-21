@@ -155,6 +155,7 @@ dependencies = [
  "crossterm",
  "list_helper_core",
  "list_helper_macro",
+ "once_cell",
  "serde",
  "serde_json",
  "tui",

@@ -16,8 +16,9 @@ use tui::{
 
 use crate::{
     app::{App, View},
-    events::{Events, InputEvent},
     commits::CommitsList,
+    console::get_messages,
+    events::{Events, InputEvent},
 };
 
 /// Draw the UI
@@ -50,11 +51,7 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
 
     if app.should_show_console() {
         let console_height = parts[1].height as usize - 2;
-        let mut messages = app.messages.clone();
-        for s in app.commits.messages.iter() {
-            messages.push(s.clone());
-        }
-        messages.sort();
+        let messages = get_messages();
 
         let start = if messages.len() > console_height {
             messages.len() - console_height

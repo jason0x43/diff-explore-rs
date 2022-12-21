@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use chrono::{Datelike, NaiveDateTime, Timelike, Utc};
 use list_helper_core::{ListCursor, ListData};
-use list_helper_macro::{ListCursor, list_data};
+use list_helper_macro::{list_data, ListCursor};
 use tui::{
     buffer::Buffer,
     layout::Rect,
@@ -11,15 +11,14 @@ use tui::{
     widgets::{Block, List, ListItem, ListState, StatefulWidget, Widget},
 };
 
+use crate::git::Commit;
 use crate::util::Truncatable;
-use crate::{git::Commit, messages::Message};
 
 #[list_data]
 #[derive(Debug, Clone, ListCursor)]
 pub struct Commits {
     commits: Vec<Commit>,
     marks: HashSet<usize>,
-    pub messages: Vec<Message>,
 }
 
 impl Commits {
@@ -28,7 +27,6 @@ impl Commits {
             list: ListData::new(commits.len()),
             commits,
             marks: HashSet::new(),
-            messages: vec![],
         }
     }
 
@@ -141,11 +139,6 @@ impl<'a> Widget for CommitsList<'a> {
         let list = List::new(items)
             .highlight_style(Style::default().bg(Color::Indexed(0)))
             .block(self.block.unwrap());
-        StatefulWidget::render(
-            list,
-            area,
-            buf,
-            &mut self.commits.list_state(),
-        );
+        StatefulWidget::render(list, area, buf, &mut self.commits.list_state());
     }
 }
