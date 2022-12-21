@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use list_helper_core::{HasListCount, ListCursor, ListData};
 use list_helper_macro::ListCursor;
 use tui::{
@@ -9,7 +11,6 @@ use tui::{
 };
 
 use crate::{
-    console::console_log,
     git::{git_diff_stat, CommitRange, Stat},
     widget::WidgetWithBlock,
 };
@@ -28,62 +29,66 @@ impl HasListCount for Stats {
 }
 
 impl Stats {
-    pub fn new() -> Stats {
+    pub fn new(range: CommitRange) -> Stats {
         Stats {
             list: ListData::new(),
-            range: CommitRange::default(),
-            stats: vec![],
+            stats: git_diff_stat(&range),
+            range,
         }
     }
 
-    pub fn set_range(&mut self, range: CommitRange) {
-        console_log(&format!("set range to {}", range));
-        self.stats = git_diff_stat(&range);
-        self.range = range;
+    pub fn commit_range(&self) -> &CommitRange {
+        &self.range
+    }
+
+    pub fn current_stat(&self) -> &Stat {
+        let cursor = self.cursor();
+        &self.stats[cursor]
     }
 }
 
 /// The Widget used to render Stats
-pub struct StatsList<'a> {
-    stats: &'a mut Stats,
+pub struct StatsView<'a> {
+    stats: &'a RefCell<Stats>,
     block: Option<Block<'a>>,
 }
 
-impl<'a> StatsList<'a> {
-    pub fn new(stats: &mut Stats) -> StatsList {
-        StatsList { stats, block: None }
+impl<'a> StatsView<'a> {
+    pub fn new(stats: &'a RefCell<Stats>) -> StatsView {
+        StatsView { stats, block: None }
     }
 }
 
-impl<'a> WidgetWithBlock<'a> for StatsList<'a> {
+impl<'a> WidgetWithBlock<'a> for StatsView<'a> {
     fn block(&mut self, block: Block<'a>) {
         self.block = Some(block);
     }
 }
 
-impl<'a> Widget for StatsList<'a> {
+impl<'a> Widget for StatsView<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let height = area.height as usize;
+        let mut stats = self.stats.borrow_mut();
 
-        self.stats.set_list_height(height);
-
-        let stats: &Vec<Stat> = &self.stats.stats;
+        stats.set_list_height(height);
 
         let adds_width = stats
+            .stats
             .iter()
             .map(|s| s.adds.to_string().len())
             .max()
             .unwrap_or(0);
         let dels_width = stats
+            .stats
             .iter()
             .map(|s| s.deletes.to_string().len())
             .max()
             .unwrap_or(0);
 
         let items: Vec<ListItem> = stats
+            .stats
             .iter()
-            .enumerate()
-            .map(|(_i, c)| {
+            .map(|c| {
                 let row = ListItem::new(Spans::from(vec![
                     Span::styled(
                         format!(
@@ -114,6 +119,11 @@ impl<'a> Widget for StatsList<'a> {
         let list = List::new(items)
             .highlight_style(Style::default().bg(Color::Indexed(0)))
             .block(self.block.unwrap());
-        StatefulWidget::render(list, area, buf, &mut self.stats.list_state());
+        StatefulWidget::render(
+            list,
+            area,
+            buf,
+            &mut stats.list_state(),
+        );
     }
 }

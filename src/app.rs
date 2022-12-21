@@ -1,20 +1,20 @@
+use std::{cell::RefCell, collections::LinkedList};
+
 use crate::{
-    commits::Commits, console::console_log, events::Key, git::git_log,
-    stats::Stats,
+    commits::Commits, console::console_log, diff::Diff, events::Key,
+    git::git_log, stack::Stack, stats::Stats,
 };
 
 use list_helper_core::ListCursor;
 
 pub enum View {
-    Commits,
-    Stats,
-    // Diff
+    Commits(RefCell<Commits>),
+    Stats(RefCell<Stats>),
+    Diff(RefCell<Diff>),
 }
 
 pub struct App {
-    pub view: View,
-    pub commits: Commits,
-    pub stats: Stats,
+    pub views: LinkedList<View>,
     pub cursor: u32,
     pub height: u32,
     pub history: Vec<String>,
@@ -25,24 +25,18 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
+        let commits = git_log().expect("unable to load git log");
+        let mut views = LinkedList::new();
+        views.push(View::Commits(RefCell::new(Commits::new(commits))));
+
         Self {
-            view: View::Commits,
-            commits: Commits::new(),
-            stats: Stats::new(),
+            views,
             cursor: 0,
             height: 0,
             history: vec![],
             should_quit: false,
             show_console: false,
             width: 0,
-        }
-    }
-
-    pub fn load_commits(&mut self) {
-        let entries = git_log().expect("unable to load git log");
-        let entry_list = entries;
-        for entry in entry_list {
-            self.commits.add(entry)
         }
     }
 
@@ -64,40 +58,91 @@ impl App {
 
     pub fn do_action(&mut self, key: Key) {
         match key {
-            Key::Char('q') => match self.view {
-                View::Commits => self.quit(),
-                View::Stats => {
-                    self.view = View::Commits;
+            Key::Char('q') => match self.views.top() {
+                Some(View::Commits(_v)) => {
+                    self.quit();
                 }
-            },
-            Key::Char('>') => self.toggle_console(),
-            Key::Space => match self.view {
-                View::Commits => {
-                    self.commits.cursor_mark();
+                Some(View::Stats(_v)) => {
+                    self.views.pop();
+                }
+                Some(View::Diff(v)) => {
+                    // TODO: remove this when there's a real need for refresh
+                    v.borrow_mut().refresh();
+                    self.views.pop();
                 }
                 _ => {}
             },
-            Key::Up | Key::Char('k') => match self.view {
-                View::Commits => self.commits.cursor_up(),
-                View::Stats => self.stats.cursor_up(),
+            Key::Char('>') => self.toggle_console(),
+            Key::Space => match self.views.top() {
+                Some(View::Commits(v)) => {
+                    v.borrow_mut().cursor_mark();
+                }
+                Some(View::Diff(v)) => {
+                    v.borrow_mut().page_down();
+                }
+                _ => {}
             },
-            Key::Down | Key::Char('j') => match self.view {
-                View::Commits => self.commits.cursor_down(),
-                View::Stats => self.stats.cursor_down(),
+            Key::Up | Key::Char('k') => match self.views.top() {
+                Some(View::Commits(v)) => {
+                    v.borrow_mut().cursor_up();
+                }
+                Some(View::Stats(v)) => {
+                    v.borrow_mut().cursor_up();
+                }
+                Some(View::Diff(v)) => {
+                    v.borrow_mut().scroll_up();
+                }
+                _ => {}
             },
-            Key::Ctrl('u') => match self.view {
-                View::Commits => self.commits.cursor_page_up(),
-                View::Stats => self.stats.cursor_page_up(),
+            Key::Down | Key::Char('j') => match self.views.top() {
+                Some(View::Commits(v)) => {
+                    v.borrow_mut().cursor_down();
+                }
+                Some(View::Stats(v)) => {
+                    v.borrow_mut().cursor_down();
+                }
+                Some(View::Diff(v)) => {
+                    v.borrow_mut().scroll_down();
+                }
+                _ => {}
             },
-            Key::Ctrl('f') => match self.view {
-                View::Commits => self.commits.cursor_page_down(),
-                View::Stats => self.stats.cursor_page_down(),
+            Key::Ctrl('u') => match self.views.top() {
+                Some(View::Commits(v)) => {
+                    v.borrow_mut().cursor_page_up();
+                }
+                Some(View::Stats(v)) => {
+                    v.borrow_mut().cursor_page_up();
+                }
+                Some(View::Diff(v)) => {
+                    v.borrow_mut().page_up();
+                }
+                _ => {}
+            },
+            Key::Ctrl('f') => match self.views.top() {
+                Some(View::Commits(v)) => {
+                    v.borrow_mut().cursor_page_down();
+                }
+                Some(View::Stats(v)) => {
+                    v.borrow_mut().cursor_page_down();
+                }
+                Some(View::Diff(v)) => {
+                    v.borrow_mut().page_down();
+                }
+                _ => {}
             },
             Key::Ctrl('c') => self.quit(),
-            Key::Enter => match self.view {
-                View::Commits => {
-                    self.stats.set_range(self.commits.get_range());
-                    self.view = View::Stats;
+            Key::Enter => match self.views.top() {
+                Some(View::Commits(v)) => {
+                    let range = v.borrow_mut().get_range();
+                    self.views
+                        .push(View::Stats(RefCell::new(Stats::new(range))));
+                }
+                Some(View::Stats(v)) => {
+                    let stat = v.borrow().current_stat().clone();
+                    let range = v.borrow().commit_range().clone();
+                    self.views.push(View::Diff(RefCell::new(Diff::new(
+                        &stat, &range,
+                    ))));
                 }
                 _ => {}
             },

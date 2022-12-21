@@ -1,5 +1,7 @@
+use std::cell::RefCell;
+
 use chrono::{Datelike, NaiveDateTime, Timelike, Utc};
-use list_helper_core::{ListCursor, ListData, HasListCount};
+use list_helper_core::{HasListCount, ListCursor, ListData};
 use list_helper_macro::ListCursor;
 use tui::{
     buffer::Buffer,
@@ -26,26 +28,22 @@ impl HasListCount for Commits {
 }
 
 impl Commits {
-    pub fn new() -> Commits {
+    pub fn new(commits: Vec<Commit>) -> Commits {
         Commits {
             list: ListData::new(),
-            commits: vec![],
-            mark: Option::None,
+            mark: None,
+            commits,
         }
-    }
-
-    pub fn add(&mut self, commit: Commit) {
-        self.commits.push(commit);
     }
 
     pub fn cursor_mark(&mut self) {
         let cursor = self.cursor();
         match self.mark {
-            Option::None => {
-                self.mark = Option::Some(cursor);
+            None => {
+                self.mark = Some(cursor);
             }
             _ => {
-                self.mark = Option::None;
+                self.mark = None;
             }
         }
     }
@@ -54,7 +52,7 @@ impl Commits {
         let cursor = self.cursor();
         let c = &self.commits;
         let start = match self.mark {
-            Option::Some(mark) => {
+            Some(mark) => {
                 if mark > cursor {
                     c[mark].commit.clone()
                 } else {
@@ -64,14 +62,14 @@ impl Commits {
             _ => c[cursor].commit.clone(),
         };
         let end = match self.mark {
-            Option::Some(mark) => {
+            Some(mark) => {
                 if mark > cursor {
-                    Option::Some(c[cursor].commit.clone())
+                    Some(c[cursor].commit.clone())
                 } else {
-                    Option::Some(c[mark].commit.clone())
+                    Some(c[mark].commit.clone())
                 }
             }
-            _ => Option::None,
+            _ => None,
         };
 
         CommitRange { start, end }
@@ -79,41 +77,41 @@ impl Commits {
 }
 
 /// The Widget used to render Commits
-pub struct CommitsList<'a> {
-    commits: &'a mut Commits,
+pub struct CommitsView<'a> {
+    commits: &'a RefCell<Commits>,
     block: Option<Block<'a>>,
 }
 
-impl<'a> CommitsList<'a> {
-    pub fn new(commits: &'a mut Commits) -> CommitsList<'a> {
-        CommitsList {
+impl<'a> CommitsView<'a> {
+    pub fn new(commits: &'a RefCell<Commits>) -> CommitsView<'a> {
+        CommitsView {
             commits,
             block: None,
         }
     }
 }
 
-impl<'a> WidgetWithBlock<'a> for CommitsList<'a> {
+impl<'a> WidgetWithBlock<'a> for CommitsView<'a> {
     fn block(&mut self, block: Block<'a>) {
         self.block = Some(block);
     }
 }
 
-impl<'a> Widget for CommitsList<'a> {
+impl<'a> Widget for CommitsView<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let width = area.width as usize;
         let height = area.height as usize;
+        let mut commits = self.commits.borrow_mut();
 
-        self.commits.set_list_height(height);
+        commits.set_list_height(height);
 
-        let items: Vec<ListItem> = self
-            .commits
+        let items: Vec<ListItem> = commits
             .commits
             .iter()
             .enumerate()
             .map(|(i, c)| {
-                let prefix = match self.commits.mark {
-                    Option::Some(mark) => {
+                let prefix = match commits.mark {
+                    Some(mark) => {
                         if mark == i {
                             "▶"
                         } else {
@@ -178,6 +176,11 @@ impl<'a> Widget for CommitsList<'a> {
         let list = List::new(items)
             .highlight_style(Style::default().bg(Color::Indexed(0)))
             .block(self.block.unwrap());
-        StatefulWidget::render(list, area, buf, &mut self.commits.list_state());
+        StatefulWidget::render(
+            list,
+            area,
+            buf,
+            commits.list_state(),
+        );
     }
 }

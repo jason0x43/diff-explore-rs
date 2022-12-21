@@ -25,7 +25,7 @@ pub struct CommitRange {
 impl CommitRange {
     pub fn to_string(&self) -> String {
         match &self.end {
-            Option::Some(e) => {
+            Some(e) => {
                 format!("{}..{}", self.start, e)
             }
             _ => self.start.clone(),
@@ -37,7 +37,7 @@ impl Display for CommitRange {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let start = &self.start[..8];
         let end = match &self.end {
-            Option::Some(e) => &e[..8],
+            Some(e) => &e[..8],
             _ => "<index>",
         };
         write!(f, "CommitRange({}..{})", start, end)
@@ -119,4 +119,57 @@ pub fn git_diff_stat(range: &CommitRange) -> Vec<Stat> {
         .output()
         .expect("unable to get diff stat");
     to_stats(output)
+}
+
+#[derive(Default)]
+pub struct GitDiffOpts {
+    ignore_whitespace: bool,
+}
+
+pub fn git_diff(
+    range: &CommitRange,
+    stat: &Stat,
+    opts: Option<GitDiffOpts>,
+) -> Vec<String> {
+    let cmd = match &range.end {
+        Some(v) => {
+            if *v == range.start {
+                "show"
+            } else {
+                "diff-tree"
+            }
+        }
+        _ => "diff-index",
+    };
+    let opts = match opts {
+        Some(o) => o,
+        _ => GitDiffOpts::default(),
+    };
+
+    let mut command = Command::new("git");
+    command
+        .arg(cmd)
+        .arg("--patience")
+        .arg(format!("--find-renames={}", RENAME_THRESHOLD))
+        .arg("-p");
+
+    if opts.ignore_whitespace {
+        command.arg("-w");
+    }
+
+    command
+        .arg(range.to_string())
+        .arg("--")
+        .arg(stat.path.clone());
+
+    if stat.old_path.len() > 0 {
+        command.arg(stat.old_path.clone());
+    }
+
+    let output = command.output().expect("unable to get diff");
+
+    let out_str =
+        String::from_utf8(output.stdout).expect("invalid output string");
+
+    out_str.split("\n").map(|s| String::from(s)).collect()
 }

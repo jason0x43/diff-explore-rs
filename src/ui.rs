@@ -16,11 +16,12 @@ use tui::{
 
 use crate::{
     app::{App, View},
-    commits::CommitsList,
+    commits::CommitsView,
     console::get_messages,
     events::{Events, InputEvent},
-    stats::StatsList,
+    stats::StatsView,
     widget::RenderBorderedWidget,
+    stack::Stack, diff::DiffView,
 };
 
 /// Draw the UI
@@ -38,15 +39,20 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
 
     let content_rect = parts[0];
 
-    match &app.view {
-        View::Commits => {
-            let w = CommitsList::new(&mut app.commits);
+    match &app.views.top() {
+        Some(View::Commits(v)) => {
+            let w = CommitsView::new(v);
             f.draw_widget(w, "Commits", content_rect);
         }
-        View::Stats => {
-            let w = StatsList::new(&mut app.stats);
+        Some(View::Stats(v)) => {
+            let w = StatsView::new(v);
             f.draw_widget(w, "Stats", content_rect);
         }
+        Some(View::Diff(v)) => {
+            let w = DiffView::new(v);
+            f.draw_widget(w, "Diff", content_rect);
+        }
+        _ => {}
     };
 
     if app.should_show_console() {
@@ -97,8 +103,6 @@ fn restore_term(
 pub fn start(mut app: App) -> Result<(), io::Error> {
     let mut term = setup_term()?;
     let events = Events::new();
-
-    app.load_commits();
 
     loop {
         term.draw(|f| draw(f, &mut app))?;
