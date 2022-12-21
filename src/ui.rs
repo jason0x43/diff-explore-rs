@@ -18,10 +18,11 @@ use crate::{
     app::{App, View},
     commits::CommitsView,
     console::get_messages,
+    diff::DiffView,
     events::{Events, InputEvent},
+    stack::Stack,
     stats::StatsView,
     widget::RenderBorderedWidget,
-    stack::Stack, diff::DiffView,
 };
 
 /// Draw the UI
@@ -110,6 +111,22 @@ pub fn start(mut app: App) -> Result<(), io::Error> {
         match events.next().unwrap() {
             InputEvent::Input(key) => app.do_action(key),
             InputEvent::Resize => {}
+            InputEvent::FileChange(event) => match app.views.top() {
+                Some(View::Diff(v)) => match event.kind {
+                    notify::event::EventKind::Modify(modify_kind) => {
+                        match modify_kind {
+                            notify::event::ModifyKind::Data(_change) => {
+                                if v.borrow().is_in_list(&event.paths) {
+                                    v.borrow_mut().refresh();
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    _ => {}
+                },
+                _ => {}
+            },
         };
 
         if app.should_quit() {

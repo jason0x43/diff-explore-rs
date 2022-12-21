@@ -73,6 +73,19 @@ impl Stat {
     }
 }
 
+pub fn git_root() -> Result<String> {
+    let output = Command::new("git")
+        .arg("rev-parse")
+        .arg("--show-toplevel")
+        .output()
+        .expect("unable to read git log");
+    let out_str =
+        String::from_utf8(output.stdout).expect("invalid output string");
+    Ok(String::from(
+        out_str.trim_end_matches("\n").trim_end_matches(","),
+    ))
+}
+
 pub fn git_log() -> Result<Vec<Commit>> {
     let output = Command::new("git")
         .arg("log")

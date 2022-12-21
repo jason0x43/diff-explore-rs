@@ -18,6 +18,9 @@ tui = { workspace = true }
 list_helper_macro = { path = "list_helper/macro" }
 list_helper_core = { path = "list_helper/core" }
 once_cell = "1.16.0"
+notify = "5.0.0"
+
+[features]
 
 [workspace.dependencies]
 tui = "0.19"

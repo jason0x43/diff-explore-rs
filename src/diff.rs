@@ -1,4 +1,8 @@
-use std::{cell::RefCell, cmp::min};
+use std::{
+    cell::RefCell,
+    cmp::min,
+    path::{Path, PathBuf},
+};
 
 use tui::{
     buffer::Buffer,
@@ -9,7 +13,6 @@ use tui::{
 };
 
 use crate::{
-    console::console_log,
     git::{git_diff, CommitRange, Stat},
     widget::WidgetWithBlock,
 };
@@ -36,6 +39,11 @@ impl Diff {
             stat: stat.clone(),
             range: range.clone(),
         }
+    }
+
+    pub fn is_in_list(&self, paths: &Vec<PathBuf>) -> bool {
+        let buf = Path::new(&self.stat.path).canonicalize().unwrap();
+        paths.contains(&buf)
     }
 
     pub fn refresh(&mut self) {
@@ -92,8 +100,6 @@ impl<'a> Widget for DiffView<'a> {
         let mut diff = self.diff.borrow_mut();
 
         diff.height = area.height as usize;
-
-        console_log(&format!("rendering with offset {}", diff.offset));
 
         let items: Vec<ListItem> = diff.lines[diff.offset..]
             .iter()

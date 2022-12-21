@@ -65,9 +65,7 @@ impl App {
                 Some(View::Stats(_v)) => {
                     self.views.pop();
                 }
-                Some(View::Diff(v)) => {
-                    // TODO: remove this when there's a real need for refresh
-                    v.borrow_mut().refresh();
+                Some(View::Diff(_v)) => {
                     self.views.pop();
                 }
                 _ => {}
