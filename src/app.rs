@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::LinkedList};
+use std::{cell::RefCell, collections::LinkedList, process::exit};
 
 use crate::{
     commits::Commits, console::console_log, diff::Diff, events::Key,
@@ -25,7 +25,16 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
-        let commits = git_log().expect("unable to load git log");
+        let commits = match git_log() {
+            Ok(c) => {
+                c
+            }
+            Err(e) => {
+                println!("Error reading git log: {}", e);
+                exit(1);
+            }
+        };
+
         let mut views = LinkedList::new();
         views.push(View::Commits(RefCell::new(Commits::new(commits))));
 
