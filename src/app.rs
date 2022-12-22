@@ -1,8 +1,8 @@
 use std::{cell::RefCell, collections::LinkedList, process::exit};
 
 use crate::{
-    commits::Commits, console::console_log, diff::Diff, events::Key,
-    git::git_log, stack::Stack, stats::Stats,
+    commits::Commits, console, diff::Diff, events::Key, git::git_log,
+    stack::Stack, stats::Stats,
 };
 
 use list_helper_core::ListCursor;
@@ -26,9 +26,7 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let commits = match git_log() {
-            Ok(c) => {
-                c
-            }
+            Ok(c) => c,
             Err(e) => {
                 println!("Error reading git log: {}", e);
                 exit(1);
@@ -154,7 +152,7 @@ impl App {
                 _ => {}
             },
             _ => {
-                console_log(&format!("Unhandled: {}", key));
+                console!("Unhandled: {}", key);
             }
         }
     }

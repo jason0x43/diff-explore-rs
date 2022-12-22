@@ -35,3 +35,10 @@ pub fn console_log(message: &str) {
 pub fn get_messages() -> Vec<Message> {
     ensure_messages().lock().unwrap().to_vec()
 }
+
+#[macro_export]
+macro_rules! console {
+    ($($t:tt)*) => {{
+        console::console_log(&format!($($t)*));
+    }};
+}
