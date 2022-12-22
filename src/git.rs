@@ -1,12 +1,10 @@
 use core::fmt;
-use serde::Deserialize;
-use serde_json::Result;
 use std::{
-    fmt::Display,
+    fmt::{Display, Error},
     process::{Command, Output},
 };
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Commit {
     pub commit: String,
     pub decoration: String,
@@ -17,7 +15,7 @@ pub struct Commit {
 }
 
 impl Commit {
-    pub fn from_line(line: &str) -> Commit {
+    fn from_log_line(line: &str) -> Commit {
         let parts: Vec<&str> = line.splitn(6, '|').collect();
         Commit {
             commit: String::from(parts[0]),
@@ -60,9 +58,13 @@ impl Display for CommitRange {
 
 #[derive(Debug, Clone)]
 pub struct Stat {
+    /// Number of added lines
     pub adds: u32,
+    /// Number of deleted lines
     pub deletes: u32,
+    /// Path of the modified file
     pub path: String,
+    /// Original path of the modified file (if renamed)
     pub old_path: String,
 }
 
@@ -87,20 +89,20 @@ impl Stat {
     }
 }
 
-pub fn git_root() -> Result<String> {
+/// Return the absolute root directory of the current repo
+pub fn git_root() -> String {
     let output = Command::new("git")
         .arg("rev-parse")
         .arg("--show-toplevel")
         .output()
-        .expect("unable to read git log");
-    let out_str =
-        String::from_utf8(output.stdout).expect("invalid output string");
-    Ok(String::from(
-        out_str.trim_end_matches("\n").trim_end_matches(","),
-    ))
+        .expect("output of rev-parse should be string");
+    let out_str = String::from_utf8(output.stdout)
+        .expect("output should be a UTF8 string");
+    String::from(out_str.trim_end_matches("\n").trim_end_matches(","))
 }
 
-pub fn git_log() -> Result<Vec<Commit>> {
+/// Return a git commit log for the current repo
+pub fn git_log() -> Vec<Commit> {
     let output = Command::new("git")
         .arg("log")
         .arg("--date=iso8601-strict")
@@ -111,20 +113,14 @@ pub fn git_log() -> Result<Vec<Commit>> {
         .expect("unable to read git log");
     let out_str =
         String::from_utf8(output.stdout).expect("invalid output string");
-
-    let mut commits: Vec<Commit> = vec![];
-    for line in out_str.split("\n") {
-        commits.push(Commit::from_line(line));
-    }
-
-    Ok(commits)
+    out_str.split("\n").map(|line| Commit::from_log_line(line)).collect()
 }
 
 const RENAME_THRESHOLD: u16 = 50;
 
 fn to_stats(output: Output) -> Vec<Stat> {
-    let out_str =
-        String::from_utf8(output.stdout).expect("invalid output string");
+    let out_str = String::from_utf8(output.stdout)
+        .expect("output should be a UTF8 string");
     out_str
         .trim_end_matches("\n")
         .split("\n")
@@ -133,6 +129,7 @@ fn to_stats(output: Output) -> Vec<Stat> {
         .collect()
 }
 
+/// Return file diff stats between two commits
 pub fn git_diff_stat(range: &CommitRange) -> Vec<Stat> {
     let output = Command::new("git")
         .arg("diff")
@@ -149,9 +146,11 @@ pub struct GitDiffOpts {
     ignore_whitespace: bool,
 }
 
-pub fn git_diff(
+/// Return a diff for a specific file between two commits
+pub fn git_diff_file(
+    path: &str,
+    old_path: &str,
     range: &CommitRange,
-    stat: &Stat,
     opts: Option<GitDiffOpts>,
 ) -> Vec<String> {
     let cmd = match &range.end {
@@ -169,8 +168,10 @@ pub fn git_diff(
         _ => GitDiffOpts::default(),
     };
 
+    let root = git_root().unwrap();
     let mut command = Command::new("git");
     command
+        .current_dir(root)
         .arg(cmd)
         .arg("--patience")
         .arg(format!("--find-renames={}", RENAME_THRESHOLD))
@@ -180,13 +181,10 @@ pub fn git_diff(
         command.arg("-w");
     }
 
-    command
-        .arg(range.to_string())
-        .arg("--")
-        .arg(stat.path.clone());
+    command.arg(range.to_string()).arg("--").arg(path.clone());
 
-    if stat.old_path.len() > 0 {
-        command.arg(stat.old_path.clone());
+    if old_path.len() > 0 {
+        command.arg(old_path.clone());
     }
 
     let output = command.output().expect("unable to get diff");

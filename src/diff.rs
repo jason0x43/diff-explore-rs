@@ -13,7 +13,7 @@ use tui::{
 };
 
 use crate::{
-    git::{git_diff, CommitRange, Stat},
+    git::{git_diff_file, CommitRange, Stat},
     widget::WidgetWithBlock,
 };
 
@@ -29,7 +29,7 @@ pub struct Diff {
 
 impl Diff {
     pub fn new(stat: &Stat, range: &CommitRange) -> Diff {
-        let lines = git_diff(&range, &stat, None);
+        let lines = git_diff_file(&stat.path, &stat.old_path, &range, None);
 
         Diff {
             lines,
@@ -47,7 +47,12 @@ impl Diff {
     }
 
     pub fn refresh(&mut self) {
-        self.lines = git_diff(&self.range, &self.stat, None);
+        self.lines = git_diff_file(
+            &self.stat.path,
+            &self.stat.old_path,
+            &self.range,
+            None,
+        );
     }
 
     pub fn scroll_up(&mut self) {
