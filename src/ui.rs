@@ -39,7 +39,7 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
 
     let content_rect = parts[0];
 
-    match &app.views.top() {
+    match app.views.top() {
         Some(View::Commits(v)) => {
             let w = CommitsView::new(v);
             f.draw_widget(w, "Commits", content_rect);
@@ -98,8 +98,8 @@ pub fn start(mut app: App) -> Result<(), io::Error> {
                     notify::event::EventKind::Modify(modify_kind) => {
                         match modify_kind {
                             notify::event::ModifyKind::Data(_change) => {
-                                if v.borrow().is_in_list(&event.paths) {
-                                    v.borrow_mut().refresh();
+                                if v.is_in_list(&event.paths) {
+                                    v.refresh();
                                 }
                             }
                             _ => {}

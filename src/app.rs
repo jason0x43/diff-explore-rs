@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::LinkedList};
+use std::collections::LinkedList;
 
 use crate::console;
 use crate::{
@@ -9,9 +9,9 @@ use crate::{
 use list_helper_core::ListCursor;
 
 pub enum View {
-    Commits(RefCell<Commits>),
-    Stats(RefCell<Stats>),
-    Diff(RefCell<Diff>),
+    Commits(Commits),
+    Stats(Stats),
+    Diff(Diff),
 }
 
 pub struct App {
@@ -25,7 +25,7 @@ impl App {
     pub fn new() -> Self {
         let commits = git_log();
         let mut views = LinkedList::new();
-        views.push(View::Commits(RefCell::new(Commits::new(commits))));
+        views.push(View::Commits(Commits::new(commits)));
 
         Self {
             views,
@@ -68,80 +68,81 @@ impl App {
             Key::Char('>') => self.toggle_console(),
             Key::Space => match self.views.top() {
                 Some(View::Commits(v)) => {
-                    v.borrow_mut().cursor_mark();
+                    v.cursor_mark();
                 }
                 Some(View::Diff(v)) => {
-                    v.borrow_mut().page_down();
+                    v.page_down();
                 }
                 _ => {}
             },
             Key::Up | Key::Char('k') => match self.views.top() {
                 Some(View::Commits(v)) => {
-                    v.borrow_mut().cursor_up();
+                    v.cursor_up();
                 }
                 Some(View::Stats(v)) => {
-                    v.borrow_mut().cursor_up();
+                    v.cursor_up();
                 }
                 Some(View::Diff(v)) => {
-                    v.borrow_mut().scroll_up();
+                    v.scroll_up();
                 }
                 _ => {}
             },
             Key::Down | Key::Char('j') => match self.views.top() {
                 Some(View::Commits(v)) => {
-                    v.borrow_mut().cursor_down();
+                    v.cursor_down();
                 }
                 Some(View::Stats(v)) => {
-                    v.borrow_mut().cursor_down();
+                    v.cursor_down();
                 }
                 Some(View::Diff(v)) => {
-                    v.borrow_mut().scroll_down();
+                    v.scroll_down();
                 }
                 _ => {}
             },
             Key::Ctrl('u') => match self.views.top() {
                 Some(View::Commits(v)) => {
-                    v.borrow_mut().cursor_page_up();
+                    v.cursor_page_up();
                 }
                 Some(View::Stats(v)) => {
-                    v.borrow_mut().cursor_page_up();
+                    v.cursor_page_up();
                 }
                 Some(View::Diff(v)) => {
-                    v.borrow_mut().page_up();
+                    v.page_up();
                 }
                 _ => {}
             },
             Key::Ctrl('f') => match self.views.top() {
                 Some(View::Commits(v)) => {
-                    v.borrow_mut().cursor_page_down();
+                    v.cursor_page_down();
                 }
                 Some(View::Stats(v)) => {
-                    v.borrow_mut().cursor_page_down();
+                    v.cursor_page_down();
                 }
                 Some(View::Diff(v)) => {
-                    v.borrow_mut().page_down();
+                    v.page_down();
                 }
                 _ => {}
             },
-            Key::Ctrl('n') => if self.show_console {
-                self.console.scroll_down();
-            },
-            Key::Ctrl('p') => if self.show_console {
-                self.console.scroll_up();
-            },
+            Key::Ctrl('n') => {
+                if self.show_console {
+                    self.console.scroll_down();
+                }
+            }
+            Key::Ctrl('p') => {
+                if self.show_console {
+                    self.console.scroll_up();
+                }
+            }
             Key::Ctrl('c') => self.quit(),
             Key::Enter => match self.views.top() {
                 Some(View::Commits(v)) => {
-                    let range = v.borrow_mut().get_range();
-                    self.views
-                        .push(View::Stats(RefCell::new(Stats::new(range))));
+                    let range = v.get_range();
+                    self.views.push(View::Stats(Stats::new(range)));
                 }
                 Some(View::Stats(v)) => {
-                    let stat = v.borrow().current_stat().clone();
-                    let range = v.borrow().commit_range().clone();
-                    self.views.push(View::Diff(RefCell::new(Diff::new(
-                        &stat, &range,
-                    ))));
+                    let stat = v.current_stat().clone();
+                    let range = v.commit_range().clone();
+                    self.views.push(View::Diff(Diff::new(&stat, &range)));
                 }
                 _ => {}
             },

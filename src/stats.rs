@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use list_helper_core::{HasListCount, ListCursor, ListData};
 use list_helper_macro::ListCursor;
 use tui::{
@@ -49,12 +47,12 @@ impl Stats {
 
 /// The Widget used to render Stats
 pub struct StatsView<'a> {
-    stats: &'a RefCell<Stats>,
+    stats: &'a mut Stats,
     block: Option<Block<'a>>,
 }
 
 impl<'a> StatsView<'a> {
-    pub fn new(stats: &'a RefCell<Stats>) -> StatsView {
+    pub fn new(stats: &'a mut Stats) -> StatsView {
         StatsView { stats, block: None }
     }
 }
@@ -68,24 +66,25 @@ impl<'a> WidgetWithBlock<'a> for StatsView<'a> {
 impl<'a> Widget for StatsView<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let height = area.height as usize;
-        let mut stats = self.stats.borrow_mut();
 
-        stats.set_list_height(height);
+        self.stats.set_list_height(height);
 
-        let adds_width = stats
+        let adds_width = self
+            .stats
             .stats
             .iter()
             .map(|s| s.adds.to_string().len())
             .max()
             .unwrap_or(0);
-        let dels_width = stats
+        let dels_width = self
+            .stats
             .stats
             .iter()
             .map(|s| s.deletes.to_string().len())
             .max()
             .unwrap_or(0);
 
-        let items: Vec<ListItem> = stats
+        let items: Vec<ListItem> = self.stats
             .stats
             .iter()
             .map(|c| {
@@ -119,11 +118,6 @@ impl<'a> Widget for StatsView<'a> {
         let list = List::new(items)
             .highlight_style(Style::default().bg(Color::Indexed(0)))
             .block(self.block.unwrap());
-        StatefulWidget::render(
-            list,
-            area,
-            buf,
-            &mut stats.list_state(),
-        );
+        StatefulWidget::render(list, area, buf, self.stats.list_state());
     }
 }

@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use chrono::{Datelike, NaiveDateTime, Timelike, Utc};
 use list_helper_core::{HasListCount, ListCursor, ListData};
 use list_helper_macro::ListCursor;
@@ -78,12 +76,12 @@ impl Commits {
 
 /// The Widget used to render Commits
 pub struct CommitsView<'a> {
-    commits: &'a RefCell<Commits>,
+    commits: &'a mut Commits,
     block: Option<Block<'a>>,
 }
 
 impl<'a> CommitsView<'a> {
-    pub fn new(commits: &'a RefCell<Commits>) -> CommitsView<'a> {
+    pub fn new(commits: &'a mut Commits) -> CommitsView<'a> {
         CommitsView {
             commits,
             block: None,
@@ -121,11 +119,10 @@ impl<'a> Widget for CommitsView<'a> {
         let width = area.width as usize;
         let height = area.height as usize;
 
-        self.commits.borrow_mut().set_list_height(height);
+        self.commits.set_list_height(height);
 
         let author_width = self
             .commits
-            .borrow()
             .commits
             .iter()
             .max_by(|x, y| x.author_name.len().cmp(&y.author_name.len()))
@@ -135,7 +132,6 @@ impl<'a> Widget for CommitsView<'a> {
 
         let time_width = relative_time(
             self.commits
-                .borrow()
                 .commits
                 .iter()
                 .max_by(|x, y| {
@@ -147,12 +143,11 @@ impl<'a> Widget for CommitsView<'a> {
 
         let items: Vec<ListItem> = self
             .commits
-            .borrow()
             .commits
             .iter()
             .enumerate()
             .map(|(i, c)| {
-                let prefix = match self.commits.borrow().mark {
+                let prefix = match self.commits.mark {
                     Some(mark) => {
                         if mark == i {
                             "▶"
@@ -232,11 +227,6 @@ impl<'a> Widget for CommitsView<'a> {
             .highlight_style(Style::default().bg(Color::Indexed(0)))
             .block(self.block.unwrap());
 
-        StatefulWidget::render(
-            list,
-            area,
-            buf,
-            self.commits.borrow_mut().list_state(),
-        );
+        StatefulWidget::render(list, area, buf, self.commits.list_state());
     }
 }
