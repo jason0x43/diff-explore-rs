@@ -6,7 +6,8 @@ use std::{
 
 #[derive(Debug, Clone)]
 pub struct Commit {
-    pub commit: String,
+    pub hash: String,
+    pub parent_hashes: Vec<String>,
     pub decoration: String,
     pub author_name: String,
     pub author_email: String,
@@ -16,14 +17,19 @@ pub struct Commit {
 
 impl Commit {
     fn from_log_line(line: &str) -> Commit {
-        let parts: Vec<&str> = line.splitn(6, '|').collect();
+        let parts: Vec<&str> = line.splitn(7, '|').collect();
         Commit {
-            commit: parts[0].into(),
-            decoration: parts[1].into(),
-            author_name: parts[2].into(),
-            author_email: parts[3].into(),
-            timestamp: parts[4].parse().unwrap(),
-            subject: parts[5].into(),
+            hash: parts[0].into(),
+            parent_hashes: if parts[1].len() > 0 {
+                parts[1].split(",").map(|p| p.into()).collect()
+            } else {
+                vec![]
+            },
+            decoration: parts[2].into(),
+            author_name: parts[3].into(),
+            author_email: parts[4].into(),
+            timestamp: parts[5].parse().unwrap(),
+            subject: parts[6].into(),
         }
     }
 }
@@ -146,10 +152,11 @@ pub fn git_root() -> String {
 pub fn git_log() -> Vec<Commit> {
     let output = Command::new("git")
         .arg("log")
+        .arg("--all")
         .arg("--date=iso8601-strict")
         .arg("--decorate")
         // commit|decoration|author_name|author_email|timestamp|subject
-        .arg("--pretty=format:%H|%d|%aN|%aE|%at|%s")
+        .arg("--pretty=format:%H|%P|%d|%aN|%aE|%at|%s")
         .output()
         .expect("unable to read git log");
     let out_str =

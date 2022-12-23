@@ -5,6 +5,7 @@ mod cursor;
 mod diff;
 mod events;
 mod git;
+mod graph;
 mod stack;
 mod stats;
 mod ui;

@@ -2,8 +2,8 @@ use std::collections::LinkedList;
 
 use crate::console;
 use crate::{
-    commits::Commits, console::Console, diff::Diff, events::Key, git::git_log,
-    stack::Stack, stats::Stats,
+    commits::Commits, console::Console, diff::Diff, events::Key, stack::Stack,
+    stats::Stats,
 };
 
 use list_helper_core::ListCursor;
@@ -23,9 +23,8 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
-        let commits = git_log();
         let mut views = LinkedList::new();
-        views.push(View::Commits(Commits::new(commits)));
+        views.push(View::Commits(Commits::new()));
 
         Self {
             views,

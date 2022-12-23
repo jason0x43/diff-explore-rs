@@ -9,7 +9,10 @@ use tui::{
     widgets::{Block, List, ListItem, ListState, StatefulWidget, Widget},
 };
 
-use crate::git::{Commit, CommitRange, Decoration};
+use crate::{
+    git::{git_log, Commit, CommitRange, Decoration},
+    graph::{CommitGraph, CommitNode},
+};
 use crate::{util::Truncatable, widget::WidgetWithBlock};
 
 #[derive(Debug, Clone, ListCursor)]
@@ -17,6 +20,7 @@ pub struct Commits {
     list: ListData,
     commits: Vec<Commit>,
     mark: Option<usize>,
+    graph: CommitGraph,
 }
 
 impl HasListCount for Commits {
@@ -26,11 +30,15 @@ impl HasListCount for Commits {
 }
 
 impl Commits {
-    pub fn new(commits: Vec<Commit>) -> Commits {
+    pub fn new() -> Commits {
+        let commits = git_log();
+        let graph = CommitGraph::new(&commits);
+
         Commits {
             list: ListData::new(),
             mark: None,
             commits,
+            graph,
         }
     }
 
@@ -52,19 +60,19 @@ impl Commits {
         let start = match self.mark {
             Some(mark) => {
                 if mark > cursor {
-                    c[mark].commit.clone()
+                    c[mark].hash.clone()
                 } else {
-                    c[cursor].commit.clone()
+                    c[cursor].hash.clone()
                 }
             }
-            _ => c[cursor].commit.clone(),
+            _ => c[cursor].hash.clone(),
         };
         let end = match self.mark {
             Some(mark) => {
                 if mark > cursor {
-                    Some(c[cursor].commit.clone())
+                    Some(c[cursor].hash.clone())
                 } else {
-                    Some(c[mark].commit.clone())
+                    Some(c[mark].hash.clone())
                 }
             }
             _ => None,
@@ -112,6 +120,39 @@ fn relative_time(c: &Commit) -> String {
     } else {
         format!("{}s", now.second() - time.second())
     }
+}
+
+const BULLET: char = '•';
+
+fn draw_graph_node(node: &CommitNode) -> String {
+    let mut graph = String::from("");
+
+    let mut placed = false;
+    for i in 0..node.num_open {
+        graph.push(' ');
+        if i == node.index {
+            placed = true;
+            graph.push(BULLET);
+        } else {
+            graph.push('│');
+        }
+    }
+
+    if !placed {
+        graph.push(' ');
+        graph.push(BULLET);
+    }
+
+    if node.num_closed > 1 {
+        graph.push('╶');
+        for _ in 1..node.num_closed - 1 {
+            graph.push('┴');
+            graph.push('─');
+        }
+        graph.push('╯');
+    }
+
+    graph
 }
 
 impl<'a> Widget for CommitsView<'a> {
@@ -165,23 +206,32 @@ impl<'a> Widget for CommitsView<'a> {
                 let last_col = width - sized_cols - all_gaps;
 
                 let age = relative_time(c);
-                let author = c.author_name.ellipses(cols[3]);
+                let author =
+                    format!("{:width$}", c.author_name, width = cols[3]);
                 let subject = c.subject.ellipses(last_col);
+
+                // draw the graph
+                let graph = draw_graph_node(&self.commits.graph.graph[i]);
 
                 let mut item: Vec<Span> = vec![
                     Span::from(prefix),
                     Span::from(" "),
                     Span::styled(
-                        format!("{}", &c.commit[..cols[1]]),
+                        format!("{}", &c.hash[..cols[1]]),
                         Style::default().fg(Color::Indexed(5)),
                     ),
                     Span::from(" "),
-                    Span::styled(age, Style::default().fg(Color::Indexed(4))),
+                    Span::styled(
+                        format!("{:>width$}", age, width = time_width),
+                        Style::default().fg(Color::Indexed(4)),
+                    ),
                     Span::from(" "),
                     Span::styled(
                         author,
                         Style::default().fg(Color::Indexed(2)),
                     ),
+                    Span::from(" "),
+                    Span::from(graph),
                     Span::from(" "),
                 ];
 
