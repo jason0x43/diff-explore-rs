@@ -1,6 +1,6 @@
 use core::fmt;
 use std::{
-    fmt::{Display, Error},
+    fmt::Display,
     process::{Command, Output},
 };
 
@@ -18,12 +18,12 @@ impl Commit {
     fn from_log_line(line: &str) -> Commit {
         let parts: Vec<&str> = line.splitn(6, '|').collect();
         Commit {
-            commit: String::from(parts[0]),
-            decoration: String::from(parts[1]),
-            author_name: String::from(parts[2]),
-            author_email: String::from(parts[3]),
-            timestamp: String::from(parts[4]).parse().unwrap(),
-            subject: String::from(parts[5]),
+            commit: parts[0].into(),
+            decoration: parts[1].into(),
+            author_name: parts[2].into(),
+            author_email: parts[3].into(),
+            timestamp: parts[4].parse().unwrap(),
+            subject: parts[5].into(),
         }
     }
 }
@@ -57,6 +57,47 @@ impl Display for CommitRange {
 }
 
 #[derive(Debug, Clone)]
+pub struct Decoration {
+    pub branches: Vec<String>,
+    pub tags: Vec<String>,
+    pub refs: Vec<String>,
+    pub head: Option<String>,
+}
+
+impl Decoration {
+    pub fn from_commit(commit: &Commit) -> Decoration {
+        let mut branches: Vec<String> = vec![];
+        let mut tags: Vec<String> = vec![];
+        let mut refs: Vec<String> = vec![];
+        let mut head: Option<String> = None;
+
+        let deco_str = commit.decoration.trim();
+        if deco_str.len() > 0 && deco_str.chars().nth(0) == Some('(') {
+            deco_str[1..deco_str.len() - 1].split(", ").for_each(|d| {
+                if d.contains(" -> ") {
+                    // branch has format "HEAD -> name"
+                    head = Some(d.split(" -> ").last().unwrap().into());
+                } else if d.starts_with("tag: ") {
+                    let tag = d.splitn(2, ": ").last().unwrap();
+                    tags.push(tag.into());
+                } else if d.contains("/") {
+                    refs.push(d.into());
+                } else {
+                    branches.push(d.into());
+                }
+            });
+        }
+
+        Decoration {
+            head,
+            branches,
+            tags,
+            refs,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Stat {
     /// Number of added lines
     pub adds: u32,
@@ -75,9 +116,9 @@ impl Stat {
         let deletes: u32 = parts[1].parse().unwrap();
         let (path, old_path) = if parts[2].contains(" => ") {
             let path_parts: Vec<&str> = parts[2].split(" => ").collect();
-            (String::from(path_parts[0]), String::from(path_parts[1]))
+            (path_parts[0].into(), path_parts[1].into())
         } else {
-            (String::from(parts[2]), String::from(""))
+            (parts[2].into(), "".into())
         };
 
         Stat {
@@ -98,7 +139,7 @@ pub fn git_root() -> String {
         .expect("output of rev-parse should be string");
     let out_str = String::from_utf8(output.stdout)
         .expect("output should be a UTF8 string");
-    String::from(out_str.trim_end_matches("\n").trim_end_matches(","))
+    out_str.trim_end_matches("\n").trim_end_matches(",").into()
 }
 
 /// Return a git commit log for the current repo
@@ -113,7 +154,10 @@ pub fn git_log() -> Vec<Commit> {
         .expect("unable to read git log");
     let out_str =
         String::from_utf8(output.stdout).expect("invalid output string");
-    out_str.split("\n").map(|line| Commit::from_log_line(line)).collect()
+    out_str
+        .split("\n")
+        .map(|line| Commit::from_log_line(line))
+        .collect()
 }
 
 const RENAME_THRESHOLD: u16 = 50;
@@ -168,7 +212,7 @@ pub fn git_diff_file(
         _ => GitDiffOpts::default(),
     };
 
-    let root = git_root().unwrap();
+    let root = git_root();
     let mut command = Command::new("git");
     command
         .current_dir(root)
@@ -192,5 +236,5 @@ pub fn git_diff_file(
     let out_str =
         String::from_utf8(output.stdout).expect("invalid output string");
 
-    out_str.split("\n").map(|s| String::from(s)).collect()
+    out_str.split("\n").map(|s| s.into()).collect()
 }

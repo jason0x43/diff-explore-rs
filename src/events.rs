@@ -119,14 +119,9 @@ impl Events {
             .unwrap(),
         );
 
-        match git_root() {
-            Ok(path) => {
-                watcher
-                    .watch(Path::new(&path), RecursiveMode::Recursive)
-                    .unwrap();
-            }
-            _ => {}
-        }
+        watcher
+            .watch(Path::new(&git_root()), RecursiveMode::Recursive)
+            .unwrap();
 
         Events {
             rx: receiver,

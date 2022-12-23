@@ -49,4 +49,3 @@ impl HasDimensions for Rect {
         Dimensions::new(new_width, new_height)
     }
 }
-
