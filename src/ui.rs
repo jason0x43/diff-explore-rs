@@ -10,14 +10,13 @@ use std::io::{self, Stdout};
 use tui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
-    widgets::{Block, Borders, Paragraph},
     Frame, Terminal,
 };
 
 use crate::{
     app::{App, View},
     commits::CommitsView,
-    console::get_messages,
+    console::ConsoleView,
     diff::DiffView,
     events::{Events, InputEvent},
     stack::Stack,
@@ -57,24 +56,7 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
     };
 
     if app.should_show_console() {
-        let console_height = parts[1].height as usize - 2;
-        let messages = get_messages();
-
-        let start = if messages.len() > console_height {
-            messages.len() - console_height
-        } else {
-            0
-        };
-        let end = if start + console_height < messages.len() {
-            start + console_height
-        } else {
-            messages.len()
-        };
-        let lines: Vec<String> =
-            messages[start..end].iter().map(|a| a.content()).collect();
-
-        let console = Paragraph::new(lines.join("\n"))
-            .block(Block::default().title("Console").borders(Borders::ALL));
+        let console = ConsoleView::new(&mut app.console);
         f.render_widget(console, parts[1]);
     }
 }

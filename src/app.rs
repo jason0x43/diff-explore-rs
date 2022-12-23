@@ -1,7 +1,8 @@
 use std::{cell::RefCell, collections::LinkedList};
 
+use crate::console;
 use crate::{
-    commits::Commits, console, diff::Diff, events::Key, git::git_log,
+    commits::Commits, console::Console, diff::Diff, events::Key, git::git_log,
     stack::Stack, stats::Stats,
 };
 
@@ -15,10 +16,7 @@ pub enum View {
 
 pub struct App {
     pub views: LinkedList<View>,
-    pub cursor: u32,
-    pub height: u32,
-    pub history: Vec<String>,
-    pub width: u32,
+    pub console: Console,
     should_quit: bool,
     show_console: bool,
 }
@@ -31,12 +29,9 @@ impl App {
 
         Self {
             views,
-            cursor: 0,
-            height: 0,
-            history: vec![],
             should_quit: false,
+            console: Console::new(),
             show_console: false,
-            width: 0,
         }
     }
 
@@ -127,6 +122,12 @@ impl App {
                     v.borrow_mut().page_down();
                 }
                 _ => {}
+            },
+            Key::Ctrl('n') => if self.show_console {
+                self.console.scroll_down();
+            },
+            Key::Ctrl('p') => if self.show_console {
+                self.console.scroll_up();
             },
             Key::Ctrl('c') => self.quit(),
             Key::Enter => match self.views.top() {
