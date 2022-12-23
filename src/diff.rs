@@ -13,7 +13,7 @@ use tui::{
 };
 
 use crate::{
-    git::{git_diff_file, CommitRange, Stat},
+    git::{git_diff_file, CommitRange, DiffFile, DiffLine, Stat},
     widget::WidgetWithBlock,
 };
 
@@ -22,17 +22,17 @@ pub struct Diff {
     list: ListState,
     height: usize,
     offset: usize,
-    lines: Vec<String>,
+    diff: DiffFile,
     range: CommitRange,
     stat: Stat,
 }
 
 impl Diff {
     pub fn new(stat: &Stat, range: &CommitRange) -> Diff {
-        let lines = git_diff_file(&stat.path, &stat.old_path, &range, None);
+        let diff = git_diff_file(&stat.path, &stat.old_path, &range, None);
 
         Diff {
-            lines,
+            diff,
             height: 0,
             offset: 0,
             list: ListState::default(),
@@ -47,7 +47,7 @@ impl Diff {
     }
 
     pub fn refresh(&mut self) {
-        self.lines = git_diff_file(
+        self.diff = git_diff_file(
             &self.stat.path,
             &self.stat.old_path,
             &self.range,
@@ -66,16 +66,16 @@ impl Diff {
     }
 
     pub fn scroll_down(&mut self) {
-        if self.lines.len() - self.offset > self.height {
-            let limit = self.lines.len() - self.offset - self.height;
+        if self.diff.lines.len() - self.offset > self.height {
+            let limit = self.diff.lines.len() - self.offset - self.height;
             let delta = min(limit, 1);
             self.offset += delta;
         }
     }
 
     pub fn page_down(&mut self) {
-        if self.lines.len() - self.offset > self.height {
-            let limit = self.lines.len() - self.offset - self.height;
+        if self.diff.lines.len() - self.offset > self.height {
+            let limit = self.diff.lines.len() - self.offset - self.height;
             let delta = min(limit, self.height);
             self.offset += delta;
         }
@@ -100,32 +100,78 @@ impl<'a> WidgetWithBlock<'a> for DiffView<'a> {
     }
 }
 
+fn line_spans<'a>(
+    old_color: u8,
+    new_color: u8,
+    line_color: u8,
+    old: u32,
+    new: u32,
+    line: &str,
+) -> Vec<Span<'a>> {
+    [
+        Span::styled(
+            old.to_string(),
+            Style::default().fg(Color::Indexed(old_color)),
+        ),
+        Span::from(" "),
+        Span::styled(
+            new.to_string(),
+            Style::default().fg(Color::Indexed(new_color)),
+        ),
+        Span::from(" "),
+        Span::styled(
+            String::from(&line[1..]),
+            Style::default().fg(Color::Indexed(line_color)),
+        ),
+    ]
+    .into()
+}
+
 impl<'a> Widget for DiffView<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let mut diff = self.diff.borrow_mut();
+        let list = {
+            let diff = self.diff.borrow();
+            let items: Vec<ListItem> = diff.diff.lines[diff.offset..]
+                .iter()
+                .enumerate()
+                .map(|(i, c)| {
+                    let line_nr = diff.offset + i;
+                    if c.len() > 0 {
+                        let spans: Vec<Span> =
+                            match &diff.diff.line_meta[line_nr] {
+                                DiffLine::Add(meta) => {
+                                    line_spans(8, 7, 2, meta.old, meta.new, c)
+                                }
+                                DiffLine::Del(meta) => {
+                                    line_spans(7, 8, 1, meta.old, meta.new, c)
+                                }
+                                DiffLine::Same(meta) => {
+                                    line_spans(7, 7, 17, meta.old, meta.new, c)
+                                }
+                                DiffLine::Start => [Span::styled(
+                                    c.clone(),
+                                    Style::default().fg(Color::Indexed(3)),
+                                )]
+                                .into(),
+                                DiffLine::Hunk => [Span::styled(
+                                    c.clone(),
+                                    Style::default().fg(Color::Indexed(6)),
+                                )]
+                                .into(),
+                                _ => [Span::from(c.clone())].into(),
+                            };
+                        ListItem::new(Spans::from(spans))
+                    } else {
+                        ListItem::new(Spans::from(vec![Span::from("")]))
+                    }
+                })
+                .collect();
 
-        diff.height = area.height as usize;
+            List::new(items).block(self.block.unwrap())
+        };
 
-        let items: Vec<ListItem> = diff.lines[diff.offset..]
-            .iter()
-            .map(|c| {
-                if c.len() > 0 {
-                    let style = match c.chars().nth(0) {
-                        Some('+') => Style::default().fg(Color::Indexed(2)),
-                        Some('-') => Style::default().fg(Color::Indexed(1)),
-                        _ => Style::default(),
-                    };
-                    ListItem::new(Spans::from(vec![Span::styled(
-                        c.clone(),
-                        style,
-                    )]))
-                } else {
-                    ListItem::new(Spans::from(vec![Span::from("")]))
-                }
-            })
-            .collect();
-
-        let list = List::new(items).block(self.block.unwrap());
-        StatefulWidget::render(list, area, buf, &mut diff.list);
+        let mut diff_mut = self.diff.borrow_mut();
+        diff_mut.height = area.height as usize;
+        StatefulWidget::render(list, area, buf, &mut diff_mut.list);
     }
 }
