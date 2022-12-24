@@ -1,6 +1,8 @@
 use chrono::{Datelike, NaiveDateTime, Timelike, Utc};
+use lazy_static::lazy_static;
 use list_helper_core::{HasListCount, ListCursor, ListData};
 use list_helper_macro::ListCursor;
+use regex::Regex;
 use tui::{
     buffer::Buffer,
     layout::Rect,
@@ -157,6 +159,11 @@ fn draw_graph_node(node: &CommitNode) -> String {
 
 impl<'a> Widget for CommitsView<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        lazy_static! {
+            static ref COMMIT_RE: Regex =
+                Regex::new(r"^\w+(\(\w+\))?!?:.").unwrap();
+        }
+
         let height = area.height as usize;
 
         self.commits.set_list_height(height);
@@ -203,7 +210,6 @@ impl<'a> Widget for CommitsView<'a> {
                 let age = relative_time(c);
                 let author =
                     format!("{:width$}", c.author_name, width = author_width);
-                let subject = c.subject.clone();
 
                 // draw the graph
                 let graph = draw_graph_node(&self.commits.graph.graph[i]);
@@ -262,7 +268,18 @@ impl<'a> Widget for CommitsView<'a> {
                     item.push(Span::from(" "));
                 });
 
-                item.push(Span::from(subject));
+                if COMMIT_RE.is_match(&c.subject) {
+                    let mut subj_type = c.subject.clone();
+                    let colon_idx = c.subject.find(':').unwrap();
+                    let subj_mesg = subj_type.split_off(colon_idx + 1);
+                    item.push(Span::styled(
+                        subj_type,
+                        Style::default().add_modifier(Modifier::BOLD),
+                    ));
+                    item.push(Span::from(subj_mesg));
+                } else {
+                    item.push(Span::from(c.subject.clone()));
+                }
 
                 ListItem::new(Spans::from(item))
             })
