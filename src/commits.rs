@@ -9,11 +9,11 @@ use tui::{
     widgets::{Block, List, ListItem, ListState, StatefulWidget, Widget},
 };
 
+use crate::widget::WidgetWithBlock;
 use crate::{
     git::{git_log, Commit, CommitRange, Decoration},
     graph::{CommitGraph, CommitNode},
 };
-use crate::{util::Truncatable, widget::WidgetWithBlock};
 
 #[derive(Debug, Clone, ListCursor)]
 pub struct Commits {
@@ -129,12 +129,12 @@ fn draw_graph_node(node: &CommitNode) -> String {
 
     let mut placed = false;
     for i in 0..node.num_open {
-        graph.push(' ');
         if i == node.index {
             placed = true;
             graph.push(BULLET);
         } else {
             graph.push('│');
+            graph.push(' ');
         }
     }
 
@@ -157,10 +157,11 @@ fn draw_graph_node(node: &CommitNode) -> String {
 
 impl<'a> Widget for CommitsView<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let width = area.width as usize;
         let height = area.height as usize;
 
         self.commits.set_list_height(height);
+
+        let hash_width = self.commits.commits[0].hash.len();
 
         let author_width = self
             .commits
@@ -199,16 +200,10 @@ impl<'a> Widget for CommitsView<'a> {
                     _ => " ",
                 };
 
-                // Determine column widths
-                let cols = [1, 8, time_width, author_width];
-                let sized_cols: usize = cols.iter().sum();
-                let all_gaps: usize = cols.len();
-                let last_col = width - sized_cols - all_gaps;
-
                 let age = relative_time(c);
                 let author =
-                    format!("{:width$}", c.author_name, width = cols[3]);
-                let subject = c.subject.ellipses(last_col);
+                    format!("{:width$}", c.author_name, width = author_width);
+                let subject = c.subject.clone();
 
                 // draw the graph
                 let graph = draw_graph_node(&self.commits.graph.graph[i]);
@@ -217,7 +212,7 @@ impl<'a> Widget for CommitsView<'a> {
                     Span::from(prefix),
                     Span::from(" "),
                     Span::styled(
-                        format!("{}", &c.hash[..cols[1]]),
+                        format!("{}", &c.hash[..hash_width]),
                         Style::default().fg(Color::Indexed(5)),
                     ),
                     Span::from(" "),

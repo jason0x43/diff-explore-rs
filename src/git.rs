@@ -156,7 +156,7 @@ pub fn git_log() -> Vec<Commit> {
         .arg("--date=iso8601-strict")
         .arg("--decorate")
         // commit|decoration|author_name|author_email|timestamp|subject
-        .arg("--pretty=format:%H|%P|%d|%aN|%aE|%at|%s")
+        .arg("--pretty=format:%h|%p|%d|%aN|%aE|%at|%s")
         .output()
         .expect("unable to read git log");
     let out_str =
