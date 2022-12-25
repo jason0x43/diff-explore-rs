@@ -1,6 +1,7 @@
 use std::collections::LinkedList;
 
 use crate::console;
+use crate::statusline::{HasStatus, StatusLine};
 use crate::{
     commits::Commits, console::Console, diff::Diff, events::Key, stack::Stack,
     stats::Stats,
@@ -17,6 +18,7 @@ pub enum View {
 pub struct App {
     pub views: LinkedList<View>,
     pub console: Console,
+    pub statusline: StatusLine,
     should_quit: bool,
     show_console: bool,
 }
@@ -24,13 +26,16 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let mut views = LinkedList::new();
-        views.push(View::Commits(Commits::new()));
+        let commits = Commits::new();
+        let status = commits.status();
+        views.push(View::Commits(commits));
 
         Self {
             views,
             should_quit: false,
             console: Console::new(),
             show_console: false,
+            statusline: StatusLine::new(status, None),
         }
     }
 

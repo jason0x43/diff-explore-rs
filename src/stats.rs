@@ -10,6 +10,7 @@ use tui::{
 
 use crate::{
     git::{git_diff_stat, CommitRange, Stat},
+    statusline::HasStatus,
     widget::WidgetWithBlock,
 };
 
@@ -42,6 +43,12 @@ impl Stats {
     pub fn current_stat(&self) -> &Stat {
         let cursor = self.cursor();
         &self.stats[cursor]
+    }
+}
+
+impl HasStatus for Stats {
+    fn status(&self) -> String {
+        format!("{}", self.range)
     }
 }
 
@@ -84,7 +91,8 @@ impl<'a> Widget for StatsView<'a> {
             .max()
             .unwrap_or(0);
 
-        let items: Vec<ListItem> = self.stats
+        let items: Vec<ListItem> = self
+            .stats
             .stats
             .iter()
             .map(|c| {
@@ -115,9 +123,13 @@ impl<'a> Widget for StatsView<'a> {
             })
             .collect();
 
-        let list = List::new(items)
-            .highlight_style(Style::default().bg(Color::Indexed(0)))
-            .block(self.block.unwrap());
+        let mut list = List::new(items)
+            .highlight_style(Style::default().bg(Color::Indexed(0)));
+
+        if let Some(b) = self.block {
+            list = list.block(b);
+        }
+
         StatefulWidget::render(list, area, buf, self.stats.list_state());
     }
 }

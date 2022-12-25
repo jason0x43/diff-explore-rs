@@ -3,6 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use list_helper_core::HasListCount;
 use tui::{
     buffer::Buffer,
     layout::Rect,
@@ -13,7 +14,7 @@ use tui::{
 
 use crate::{
     git::{git_diff_file, CommitRange, DiffFile, DiffLine, Stat},
-    widget::WidgetWithBlock,
+    widget::WidgetWithBlock, statusline::HasStatus,
 };
 
 #[derive(Debug, Clone)]
@@ -40,11 +41,14 @@ impl Diff {
         }
     }
 
+    /// Return true if the file represented by this diff is in the given list of
+    /// paths
     pub fn is_in_list(&self, paths: &Vec<PathBuf>) -> bool {
         let buf = Path::new(&self.stat.path).canonicalize().unwrap();
         paths.contains(&buf)
     }
 
+    /// Re-diff the file; call this when the underlying file may have changed
     pub fn refresh(&mut self) {
         self.diff = git_diff_file(
             &self.stat.path,
@@ -52,6 +56,10 @@ impl Diff {
             &self.range,
             None,
         );
+    }
+
+    pub fn last_line(&self) -> usize {
+        min(self.offset + self.height, self.diff.lines.len())
     }
 
     pub fn scroll_up(&mut self) {
@@ -78,6 +86,18 @@ impl Diff {
             let delta = min(limit, self.height);
             self.offset += delta;
         }
+    }
+}
+
+impl HasListCount for Diff {
+    fn list_count(&self) -> usize {
+        self.diff.lines.len()
+    }
+}
+
+impl HasStatus for Diff {
+    fn status(&self) -> String {
+        format!("{}: {}", self.range, self.stat.path)
     }
 }
 
@@ -166,7 +186,12 @@ impl<'a> Widget for DiffView<'a> {
             })
             .collect();
 
-        let list = List::new(items).block(self.block.unwrap());
+        let mut list = List::new(items);
+
+        if let Some(b) = self.block {
+            list = list.block(b);
+        };
+
         StatefulWidget::render(list, area, buf, &mut self.diff.list);
     }
 }

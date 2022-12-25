@@ -8,6 +8,7 @@ mod git;
 mod graph;
 mod stack;
 mod stats;
+mod statusline;
 mod ui;
 mod util;
 mod widget;

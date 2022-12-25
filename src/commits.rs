@@ -13,7 +13,7 @@ use tui::{
 
 use crate::{
     git::{git_log, Commit, CommitRange, Decoration},
-    graph::{CommitGraph, CommitNode},
+    graph::{CommitGraph, CommitNode}, statusline::HasStatus,
 };
 use crate::{graph::Track, widget::WidgetWithBlock};
 
@@ -81,6 +81,12 @@ impl Commits {
         };
 
         CommitRange { start, end }
+    }
+}
+
+impl HasStatus for Commits {
+    fn status(&self) -> String {
+        format!("{}", self.get_range())
     }
 }
 
@@ -290,9 +296,12 @@ impl<'a> Widget for CommitsView<'a> {
             })
             .collect();
 
-        let list = List::new(items)
-            .highlight_style(Style::default().bg(Color::Indexed(0)))
-            .block(self.block.unwrap());
+        let mut list = List::new(items)
+            .highlight_style(Style::default().bg(Color::Indexed(0)));
+
+        if let Some(b) = self.block {
+            list = list.block(b);
+        }
 
         StatefulWidget::render(list, area, buf, self.commits.list_state());
     }

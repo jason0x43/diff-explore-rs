@@ -5,7 +5,7 @@ use once_cell::sync::Lazy;
 use tui::{
     buffer::Buffer,
     layout::Rect,
-    widgets::{Block, Borders, Paragraph, Widget},
+    widgets::{Block, Paragraph, Widget},
 };
 
 use crate::widget::WidgetWithBlock;
@@ -91,8 +91,11 @@ impl<'a> Widget for ConsoleView<'a> {
         let lines: Vec<String> =
             messages[start..end].iter().map(|a| a.content()).collect();
 
-        let console = Paragraph::new(lines.join("\n"))
-            .block(Block::default().title("Console").borders(Borders::ALL));
+        let mut console = Paragraph::new(lines.join("\n"));
+
+        if let Some(b) = self.block {
+            console = console.block(b);
+        }
 
         Widget::render(console, area, buf);
     }

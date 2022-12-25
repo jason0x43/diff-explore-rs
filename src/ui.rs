@@ -6,10 +6,11 @@ use crossterm::{
         LeaveAlternateScreen,
     },
 };
+use list_helper_core::{ListCursor, HasListCount};
 use std::io::{self, Stdout};
 use tui::{
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     Frame, Terminal,
 };
 
@@ -21,44 +22,71 @@ use crate::{
     events::{Events, InputEvent},
     stack::Stack,
     stats::StatsView,
+    statusline::{StatusLineView, HasStatus},
     widget::RenderBorderedWidget,
 };
 
 /// Draw the UI
 pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
     let constraints = if app.should_show_console() {
-        [Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()
+        [
+            Constraint::Percentage(50),
+            Constraint::Percentage(50),
+            Constraint::Length(1),
+        ]
+        .as_ref()
     } else {
-        [Constraint::Percentage(100)].as_ref()
+        [Constraint::Percentage(100), Constraint::Length(1)].as_ref()
     };
 
+    let size = f.size();
     let parts = Layout::default()
         .direction(Direction::Vertical)
         .constraints(constraints)
-        .split(f.size());
+        .split(Rect {
+            height: size.height - 1,
+            ..size
+        });
 
     let content_rect = parts[0];
 
     match app.views.top() {
         Some(View::Commits(v)) => {
+            app.statusline.set_status(v.status());
+            app.statusline.set_location(v.cursor(), v.list_count());
             let w = CommitsView::new(v);
-            f.draw_widget(w, "Commits", content_rect);
+            f.render_widget(w, content_rect);
         }
         Some(View::Stats(v)) => {
+            app.statusline.set_status(v.status());
+            app.statusline.set_location(v.cursor(), v.list_count());
             let w = StatsView::new(v);
-            f.draw_widget(w, "Stats", content_rect);
+            f.render_widget(w, content_rect);
         }
         Some(View::Diff(v)) => {
+            app.statusline.set_status(v.status());
+            app.statusline.set_location(v.last_line(), v.list_count());
             let w = DiffView::new(v);
-            f.draw_widget(w, "Diff", content_rect);
+            f.render_widget(w, content_rect);
         }
         _ => {}
     };
 
     if app.should_show_console() {
         let console = ConsoleView::new(&mut app.console);
-        f.render_widget(console, parts[1]);
+        f.draw_widget(console, "Console", parts[1]);
     }
+
+    let statusline = StatusLineView::new(&app.statusline);
+    f.render_widget(
+        statusline,
+        Rect {
+            x: 0,
+            y: size.height - 1,
+            width: size.width,
+            height: 1,
+        },
+    );
 }
 
 fn setup_term() -> Result<Terminal<CrosstermBackend<Stdout>>, io::Error> {

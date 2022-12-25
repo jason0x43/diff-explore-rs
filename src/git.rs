@@ -53,12 +53,12 @@ impl CommitRange {
 
 impl Display for CommitRange {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let start = &self.start[..8];
+        let start = &self.start;
         let end = match &self.end {
-            Some(e) => &e[..8],
+            Some(e) => &e,
             _ => "<index>",
         };
-        write!(f, "CommitRange({}..{})", start, end)
+        write!(f, "{}..{}", start, end)
     }
 }
 
