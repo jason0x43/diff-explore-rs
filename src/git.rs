@@ -21,7 +21,7 @@ impl Commit {
         Commit {
             hash: parts[0].into(),
             parent_hashes: if parts[1].len() > 0 {
-                parts[1].split(",").map(|p| p.into()).collect()
+                parts[1].split(" ").map(|p| p.into()).collect()
             } else {
                 vec![]
             },

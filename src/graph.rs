@@ -1,13 +1,16 @@
 use crate::git::Commit;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum Track {
+    Node,
+    Continue,
+    MergeDown,
+    MergeUp,
+}
+
+#[derive(Debug, Clone)]
 pub struct CommitNode {
-    /// how many branches are open at this commit
-    pub num_open: u16,
-    /// how many branches were closed at this commit
-    pub num_closed: u16,
-    /// the index of the graph branch this commit is connected to
-    pub index: u16,
+    pub tracks: Vec<Track>,
 }
 
 #[derive(Debug, Clone)]
@@ -15,91 +18,74 @@ pub struct CommitGraph {
     pub graph: Vec<CommitNode>,
 }
 
-#[derive(Debug, Clone)]
-struct OpenBranch<'a> {
-    pub hash: &'a str,
-    pub count: usize,
-}
-
 impl CommitGraph {
     pub fn new(commits: &Vec<Commit>) -> CommitGraph {
         // use a vector of open branches to preserve order
-        let mut open_branches: Vec<OpenBranch> = vec![];
+        let mut tracks: Vec<String> = vec![];
 
         CommitGraph {
             graph: commits
                 .iter()
                 .map(|c| {
-                    // the horizontal index of this commit's branch
-                    let mut index: Option<usize> = None;
-                    // number of branches closed by this commit
-                    let mut closed_branches = 0;
+                    let mut node_tracks: Vec<Track> = vec![];
+
+                    // used to walk through parent commits
                     let mut parent_hash_iter = c.parent_hashes.iter();
 
-                    if let Some(x) =
-                        open_branches.iter().position(|b| b.hash == &c.hash)
-                    {
-                        // this commit is a branch root; all of its open
-                        // branches will be closed
-                        closed_branches = open_branches[x].count as u16;
+                    if let Some(x) = tracks.iter().position(|t| t == &c.hash) {
+                        // this commit is in the track list, so its node will
+                        // be inserted into the track list at the commit hash's
+                        // first occurrence
+
+                        for _ in 0..x {
+                            node_tracks.push(Track::Continue);
+                        }
+                        node_tracks.push(Track::Node);
 
                         // replace this branch in the open branches list with
                         // its first parent (if it has parents)
                         if let Some(parent_hash) = parent_hash_iter.next() {
-                            if let Some(y) = open_branches
-                                .iter()
-                                .position(|b| b.hash == parent_hash)
-                            {
-                                // the parent branch is already in the open
-                                // branches list -- move it to the this
-                                // branch's slot in the open branches list
-                                // and increase the count
-                                let old = open_branches.remove(y);
-                                open_branches[x] = OpenBranch {
-                                    count: old.count + 1,
-                                    ..old
-                                }
+                            tracks[x] = parent_hash.clone();
+                        }
+
+                        // all other occurrences of this node are merge-downs
+                        for i in x + 1..tracks.len() {
+                            if tracks[i] == c.hash {
+                                node_tracks.push(Track::MergeDown);
                             } else {
-                                // the parent branch isn't in the open branches
-                                // list -- replace this branch's slot with a new
-                                // entry
-                                open_branches[x] = OpenBranch {
-                                    hash: &parent_hash,
-                                    count: 1,
-                                };
-                            };
-
-                            index = Some(x);
+                                node_tracks.push(Track::Continue);
+                            }
                         }
+
+                        tracks = tracks
+                            .iter()
+                            .filter(|&t| t != &c.hash)
+                            .map(|t| t.clone())
+                            .collect();
+                    } else {
+                        // this commit isn't in the track list, so it will open
+                        // a new track
+
+                        for _ in 0..tracks.len() {
+                            node_tracks.push(Track::Continue);
+                        }
+                        node_tracks.push(Track::Node);
                     }
 
-                    // push all this commit's parents onto the open branches
-                    // list if they're not already in there; skip the first one,
-                    // which was handled previously
+                    // create tracks for all this commit's remaining parents
                     for p in parent_hash_iter {
-                        // if the parent hash isn't already assigned to an open
-                        // branch, add it to the list
-                        match open_branches.iter().position(|b| b.hash == p) {
-                            None => {
-                                open_branches
-                                    .push(OpenBranch { hash: p, count: 1 });
-                            }
-                            Some(p) => {
-                                open_branches[p].count += 1;
-                            }
+                        // don't add renderable tracks if the commit only has
+                        // one parent (a Node track will already have been added
+                        // for that) or if the track list already contains the
+                        // commit (in which case a new track isn't needed)
+                        if c.parent_hashes.len() > 1 && !tracks.contains(p) {
+                            node_tracks.push(Track::MergeUp);
                         }
+                        tracks.push(p.clone());
                     }
-
-                    let num_open_branches =
-                        open_branches.iter().fold(0, |acc, b| acc + b.count);
 
                     CommitNode {
-                        num_open: num_open_branches as u16,
-                        index: match index {
-                            Some(b) => b as u16,
-                            _ => num_open_branches as u16 - 1,
-                        },
-                        num_closed: closed_branches,
+                        tracks: node_tracks,
                     }
                 })
                 .collect::<Vec<CommitNode>>(),

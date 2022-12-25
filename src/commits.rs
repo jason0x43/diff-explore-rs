@@ -11,11 +11,11 @@ use tui::{
     widgets::{Block, List, ListItem, ListState, StatefulWidget, Widget},
 };
 
-use crate::widget::WidgetWithBlock;
 use crate::{
     git::{git_log, Commit, CommitRange, Decoration},
     graph::{CommitGraph, CommitNode},
 };
+use crate::{graph::Track, widget::WidgetWithBlock};
 
 #[derive(Debug, Clone, ListCursor)]
 pub struct Commits {
@@ -129,29 +129,34 @@ const BULLET: char = '•';
 fn draw_graph_node(node: &CommitNode) -> String {
     let mut graph = String::from("");
 
-    let mut placed = false;
-    for i in 0..node.num_open {
-        if i == node.index {
-            placed = true;
-            graph.push(BULLET);
-        } else {
-            graph.push('│');
-            graph.push(' ');
+    for i in 0..node.tracks.len() {
+        match node.tracks[i] {
+            Track::Continue => {
+                graph.push('│');
+                graph.push(' ');
+            }
+            Track::Node => graph.push(BULLET),
+            Track::MergeDown => {
+                match node.tracks.get(i - 1) {
+                    Some(Track::Node) => { graph.push('╶'); }
+                    _ => { graph.push('─'); }
+                }
+                match node.tracks.get(i + 1) {
+                    Some(Track::MergeDown) => { graph.push('┴'); }
+                    _ => { graph.push('╯'); }
+                }
+            }
+            Track::MergeUp => {
+                match node.tracks.get(i - 1) {
+                    Some(Track::Node) => { graph.push('╶'); }
+                    _ => { graph.push('─'); }
+                }
+                match node.tracks.get(i + 1) {
+                    Some(Track::MergeDown) => { graph.push('┴'); }
+                    _ => { graph.push('╮'); }
+                }
+            }
         }
-    }
-
-    if !placed {
-        graph.push(' ');
-        graph.push(BULLET);
-    }
-
-    if node.num_closed > 1 {
-        graph.push('╶');
-        for _ in 1..node.num_closed - 1 {
-            graph.push('┴');
-            graph.push('─');
-        }
-        graph.push('╯');
     }
 
     graph
