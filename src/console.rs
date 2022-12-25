@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 use std::{cmp::min, sync::Mutex};
 
-use once_cell::sync::OnceCell;
+use once_cell::sync::Lazy;
 use tui::{
     buffer::Buffer,
     layout::Rect,
@@ -98,25 +98,19 @@ impl<'a> Widget for ConsoleView<'a> {
     }
 }
 
-static MESSAGES: OnceCell<Mutex<Vec<Message>>> = OnceCell::new();
-
-fn ensure_messages() -> &'static Mutex<Vec<Message>> {
-    MESSAGES.get_or_init(|| Mutex::new(Vec::new()))
-}
+static MESSAGES: Lazy<Mutex<Vec<Message>>> =
+    Lazy::new(|| Mutex::new(Vec::new()));
 
 pub fn console_log(message: &str) {
-    ensure_messages()
-        .lock()
-        .unwrap()
-        .push(Message::new(message))
+    MESSAGES.lock().unwrap().push(Message::new(message))
 }
 
 fn get_messages() -> Vec<Message> {
-    ensure_messages().lock().unwrap().to_vec()
+    MESSAGES.lock().unwrap().to_vec()
 }
 
 fn get_message_count() -> usize {
-    ensure_messages().lock().unwrap().len()
+    MESSAGES.lock().unwrap().len()
 }
 
 #[macro_export]

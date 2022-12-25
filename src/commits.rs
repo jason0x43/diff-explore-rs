@@ -1,7 +1,7 @@
 use chrono::{Datelike, NaiveDateTime, Timelike, Utc};
-use lazy_static::lazy_static;
 use list_helper_core::{HasListCount, ListCursor, ListData};
 use list_helper_macro::ListCursor;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use tui::{
     buffer::Buffer,
@@ -157,13 +157,11 @@ fn draw_graph_node(node: &CommitNode) -> String {
     graph
 }
 
+static COMMIT_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^\w+(\(\w+\))?!?:.").unwrap());
+
 impl<'a> Widget for CommitsView<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        lazy_static! {
-            static ref COMMIT_RE: Regex =
-                Regex::new(r"^\w+(\(\w+\))?!?:.").unwrap();
-        }
-
         let height = area.height as usize;
 
         self.commits.set_list_height(height);
