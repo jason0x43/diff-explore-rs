@@ -135,7 +135,9 @@ fn draw_graph_node(node: &CommitNode) -> String {
                 graph.push('│');
                 graph.push(' ');
             }
-            Track::Node => graph.push(BULLET),
+            Track::Node => {
+                graph.push(BULLET);
+            }
             Track::MergeDown => {
                 match node.tracks.get(i - 1) {
                     Some(Track::Node) => { graph.push('╶'); }
@@ -152,7 +154,7 @@ fn draw_graph_node(node: &CommitNode) -> String {
                     _ => { graph.push('─'); }
                 }
                 match node.tracks.get(i + 1) {
-                    Some(Track::MergeDown) => { graph.push('┴'); }
+                    Some(Track::MergeUp) => { graph.push('┬'); }
                     _ => { graph.push('╮'); }
                 }
             }
