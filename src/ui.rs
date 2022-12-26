@@ -22,7 +22,7 @@ use crate::{
     views::{
         commits::CommitsView,
         console::ConsoleView,
-        diff::DiffView,
+        diff::{DiffView, DiffViewOpts},
         stats::StatsView,
         statusline::{Status, StatusLineView},
     },
@@ -82,7 +82,12 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
         Some(View::Diff(v)) => {
             app.statusline.set_status(v.status());
             app.statusline.set_location(v.list_pos(), v.list_count());
-            let w = DiffView::new(v);
+            let w = DiffView::new(
+                v,
+                Some(DiffViewOpts {
+                    tab_width: app.tab_width,
+                }),
+            );
             f.render_widget(w, content_rect);
         }
         _ => {}

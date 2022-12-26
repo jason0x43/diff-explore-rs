@@ -25,6 +25,7 @@ pub struct App {
     pub views: LinkedList<View>,
     pub console: Console,
     pub statusline: StatusLine,
+    pub tab_width: u8,
     should_quit: bool,
     show_console: bool,
 }
@@ -42,6 +43,7 @@ impl App {
             console: Console::new(),
             show_console: false,
             statusline: StatusLine::new(status, None),
+            tab_width: 4,
         }
     }
 
