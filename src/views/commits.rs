@@ -14,7 +14,7 @@ use tui::{
 use crate::widget::WidgetWithBlock;
 use crate::{
     git::{git_log, Commit, CommitRange, Decoration},
-    statusline::Status,
+    views::statusline::Status,
 };
 
 #[derive(Debug, Clone, PartialEq)]

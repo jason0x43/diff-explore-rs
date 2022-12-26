@@ -11,20 +11,36 @@ use std::io::{self, Stdout};
 use tui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
+    widgets::{Block, Borders},
     Frame, Terminal,
 };
 
 use crate::{
     app::{App, View},
-    commits::CommitsView,
-    console::ConsoleView,
-    diff::DiffView,
     events::{Events, InputEvent},
     stack::Stack,
-    stats::StatsView,
-    statusline::{Status, StatusLineView},
-    widget::RenderBorderedWidget,
+    views::{
+        commits::CommitsView,
+        console::ConsoleView,
+        diff::DiffView,
+        stats::StatsView,
+        statusline::{Status, StatusLineView},
+    },
+    widget::WidgetWithBlock,
 };
+
+/// Draw a widget with a border
+fn draw_framed_widget<'a, W>(
+    f: &mut Frame<CrosstermBackend<Stdout>>,
+    mut w: W,
+    t: &'a str,
+    r: Rect,
+) where
+    W: WidgetWithBlock<'a>,
+{
+    w.block(Block::default().borders(Borders::ALL).title(t));
+    f.render_widget(w, r);
+}
 
 /// Draw the UI
 pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
@@ -74,7 +90,7 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
 
     if app.should_show_console() {
         let console = ConsoleView::new(&mut app.console);
-        f.draw_widget(console, "Console", parts[1]);
+        draw_framed_widget(f, console, "Console", parts[1]);
     }
 
     let statusline = StatusLineView::new(&app.statusline);

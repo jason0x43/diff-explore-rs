@@ -1,10 +1,16 @@
 use std::collections::LinkedList;
 
 use crate::console;
-use crate::statusline::{Status, StatusLine};
 use crate::{
-    commits::Commits, console::Console, diff::Diff, events::Key, stack::Stack,
-    stats::Stats,
+    events::Key,
+    stack::Stack,
+    views::{
+        commits::Commits,
+        console::Console,
+        diff::Diff,
+        stats::Stats,
+        statusline::{Status, StatusLine},
+    },
 };
 
 use list_helper_core::ListCursor;

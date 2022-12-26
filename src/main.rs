@@ -1,15 +1,9 @@
 mod app;
-mod commits;
-mod console;
-mod cursor;
-mod diff;
+mod views;
 mod events;
 mod git;
 mod stack;
-mod stats;
-mod statusline;
 mod ui;
-mod util;
 mod widget;
 
 use app::App;

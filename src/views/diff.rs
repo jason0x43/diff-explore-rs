@@ -14,7 +14,7 @@ use tui::{
 
 use crate::{
     git::{git_diff_file, CommitRange, DiffFile, DiffLine, Stat},
-    statusline::Status,
+    views::statusline::Status,
 };
 
 #[derive(Debug, Clone)]

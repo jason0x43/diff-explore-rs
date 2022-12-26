@@ -10,7 +10,7 @@ use tui::{
 
 use crate::{
     git::{git_diff_stat, CommitRange, Stat},
-    statusline::Status,
+    views::statusline::Status,
     widget::WidgetWithBlock,
 };
 
