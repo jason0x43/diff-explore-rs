@@ -289,6 +289,7 @@ static COMMIT_RE: Lazy<Regex> =
 impl<'a> Widget for CommitsView<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let height = area.height as usize;
+        let cursor = self.commits.cursor();
 
         self.commits.set_list_height(height);
 
@@ -323,12 +324,36 @@ impl<'a> Widget for CommitsView<'a> {
                 let prefix = match self.commits.mark {
                     Some(mark) => {
                         if mark == i {
-                            "▶"
+                            if cursor > mark {
+                                "┏"
+                            } else if cursor < mark {
+                                "┗"
+                            } else {
+                                "╺"
+                            }
+                        } else if cursor == i {
+                            if cursor > mark {
+                                "┗"
+                            } else {
+                                "┏"
+                            }
+                        } else if i < cursor && i > mark
+                            || i > cursor && i < mark
+                        {
+                            "┃"
                         } else {
                             " "
                         }
                     }
-                    _ => " ",
+                    _ => {
+                        if i == cursor {
+                            "┗"
+                        } else if i < cursor {
+                            "┃"
+                        } else {
+                            " "
+                        }
+                    }
                 };
 
                 let age = relative_time(c);
@@ -340,7 +365,6 @@ impl<'a> Widget for CommitsView<'a> {
 
                 let mut item: Vec<Span> = vec![
                     Span::from(prefix),
-                    Span::from(" "),
                     Span::styled(
                         format!("{}", &c.hash[..hash_width]),
                         Style::default().fg(Color::Indexed(5)),
