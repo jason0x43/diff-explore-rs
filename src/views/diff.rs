@@ -81,6 +81,14 @@ impl Diff {
             self.offset += delta;
         }
     }
+
+    pub fn scroll_to_bottom(&mut self) {
+        self.offset = self.diff.lines.len() - self.height;
+    }
+
+    pub fn scroll_to_top(&mut self) {
+        self.offset = 0;
+    }
 }
 
 impl ListInfo for Diff {

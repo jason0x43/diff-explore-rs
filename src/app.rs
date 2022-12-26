@@ -1,4 +1,5 @@
 use std::collections::LinkedList;
+use std::time::{Duration, Instant};
 
 use crate::console;
 use crate::{
@@ -28,6 +29,9 @@ pub struct App {
     pub tab_width: u8,
     should_quit: bool,
     show_console: bool,
+    pending_keys: Vec<Key>,
+    pending_key_timeout: u64,
+    last_key_time: Instant,
 }
 
 impl App {
@@ -44,6 +48,9 @@ impl App {
             show_console: false,
             statusline: StatusLine::new(status, None),
             tab_width: 4,
+            pending_keys: vec![],
+            pending_key_timeout: 500,
+            last_key_time: Instant::now(),
         }
     }
 
@@ -64,102 +71,157 @@ impl App {
     }
 
     pub fn do_action(&mut self, key: Key) {
-        match key {
-            Key::Char('q') => match self.views.top() {
-                Some(View::Commits(_v)) => {
-                    self.quit();
-                }
-                Some(View::Stats(_v)) => {
-                    self.views.pop();
-                }
-                Some(View::Diff(_v)) => {
-                    self.views.pop();
-                }
-                _ => {}
-            },
-            Key::Char('>') => self.toggle_console(),
-            Key::Space => match self.views.top() {
-                Some(View::Commits(v)) => {
-                    v.cursor_mark();
-                }
-                Some(View::Diff(v)) => {
-                    v.page_down();
-                }
-                _ => {}
-            },
-            Key::Up | Key::Char('k') => match self.views.top() {
-                Some(View::Commits(v)) => {
-                    v.cursor_up();
-                }
-                Some(View::Stats(v)) => {
-                    v.cursor_up();
-                }
-                Some(View::Diff(v)) => {
-                    v.scroll_up();
-                }
-                _ => {}
-            },
-            Key::Down | Key::Char('j') => match self.views.top() {
-                Some(View::Commits(v)) => {
-                    v.cursor_down();
-                }
-                Some(View::Stats(v)) => {
-                    v.cursor_down();
-                }
-                Some(View::Diff(v)) => {
-                    v.scroll_down();
-                }
-                _ => {}
-            },
-            Key::Ctrl('u') => match self.views.top() {
-                Some(View::Commits(v)) => {
-                    v.cursor_page_up();
-                }
-                Some(View::Stats(v)) => {
-                    v.cursor_page_up();
-                }
-                Some(View::Diff(v)) => {
-                    v.page_up();
-                }
-                _ => {}
-            },
-            Key::Ctrl('f') => match self.views.top() {
-                Some(View::Commits(v)) => {
-                    v.cursor_page_down();
-                }
-                Some(View::Stats(v)) => {
-                    v.cursor_page_down();
-                }
-                Some(View::Diff(v)) => {
-                    v.page_down();
-                }
-                _ => {}
-            },
-            Key::Ctrl('n') => {
-                if self.show_console {
-                    self.console.scroll_down();
+        let now = std::time::Instant::now();
+        if now - self.last_key_time
+            > Duration::from_millis(self.pending_key_timeout)
+        {
+            self.pending_keys.clear();
+        }
+
+        self.last_key_time = now;
+
+        if self.pending_keys.len() > 0 {
+            let last_key = self.pending_keys.last().unwrap();
+            match key {
+                Key::Char('G') => match last_key {
+                    Key::Char('1') => match self.views.top() {
+                        Some(View::Commits(v)) => {
+                            v.cursor_to_top();
+                            self.pending_keys.clear();
+                        }
+                        Some(View::Diff(v)) => {
+                            v.scroll_to_top();
+                            self.pending_keys.clear();
+                        }
+                        Some(View::Stats(v)) => {
+                            v.cursor_to_top();
+                            self.pending_keys.clear();
+                        }
+                        _ => {
+                            self.pending_keys.clear();
+                        }
+                    },
+                    _ => {
+                        self.pending_keys.clear();
+                    }
+                },
+                _ => {
+                    self.pending_keys.clear();
                 }
             }
-            Key::Ctrl('p') => {
-                if self.show_console {
-                    self.console.scroll_up();
+        } else {
+            match key {
+                Key::Char('1') => {
+                    self.pending_keys.push(key);
                 }
-            }
-            Key::Ctrl('c') => self.quit(),
-            Key::Enter => match self.views.top() {
-                Some(View::Commits(v)) => {
-                    let range = v.get_range();
-                    self.views.push(View::Stats(Stats::new(range)));
+                Key::Char('q') => match self.views.top() {
+                    Some(View::Commits(_v)) => {
+                        self.quit();
+                    }
+                    Some(View::Stats(_v)) => {
+                        self.views.pop();
+                    }
+                    Some(View::Diff(_v)) => {
+                        self.views.pop();
+                    }
+                    _ => {}
+                },
+                Key::Char('G') => match self.views.top() {
+                    Some(View::Commits(v)) => {
+                        v.cursor_to_bottom();
+                    }
+                    Some(View::Diff(v)) => {
+                        v.scroll_to_bottom();
+                    }
+                    Some(View::Stats(v)) => {
+                        v.cursor_to_bottom();
+                    }
+                    _ => {}
+                },
+                Key::Char('>') => self.toggle_console(),
+                Key::Space => match self.views.top() {
+                    Some(View::Commits(v)) => {
+                        v.cursor_mark();
+                    }
+                    Some(View::Diff(v)) => {
+                        v.page_down();
+                    }
+                    _ => {}
+                },
+                Key::Up | Key::Char('k') => match self.views.top() {
+                    Some(View::Commits(v)) => {
+                        v.cursor_up();
+                    }
+                    Some(View::Stats(v)) => {
+                        v.cursor_up();
+                    }
+                    Some(View::Diff(v)) => {
+                        v.scroll_up();
+                    }
+                    _ => {}
+                },
+                Key::Down | Key::Char('j') => match self.views.top() {
+                    Some(View::Commits(v)) => {
+                        v.cursor_down();
+                    }
+                    Some(View::Stats(v)) => {
+                        v.cursor_down();
+                    }
+                    Some(View::Diff(v)) => {
+                        v.scroll_down();
+                    }
+                    _ => {}
+                },
+                Key::Ctrl('u') => match self.views.top() {
+                    Some(View::Commits(v)) => {
+                        v.cursor_page_up();
+                    }
+                    Some(View::Stats(v)) => {
+                        v.cursor_page_up();
+                    }
+                    Some(View::Diff(v)) => {
+                        v.page_up();
+                    }
+                    _ => {}
+                },
+                Key::Ctrl('f') => match self.views.top() {
+                    Some(View::Commits(v)) => {
+                        v.cursor_page_down();
+                    }
+                    Some(View::Stats(v)) => {
+                        v.cursor_page_down();
+                    }
+                    Some(View::Diff(v)) => {
+                        v.page_down();
+                    }
+                    _ => {}
+                },
+                Key::Ctrl('n') => {
+                    if self.show_console {
+                        self.console.scroll_down();
+                    }
                 }
-                Some(View::Stats(v)) => {
-                    let stat = v.current_stat().clone();
-                    let range = v.commit_range().clone();
-                    self.views.push(View::Diff(Diff::new(&stat, &range)));
+                Key::Ctrl('p') => {
+                    if self.show_console {
+                        self.console.scroll_up();
+                    }
                 }
-                _ => {}
-            },
-            _ => {
-                console!("Unhandled: {}", key);
+                Key::Ctrl('c') => self.quit(),
+                Key::Enter => match self.views.top() {
+                    Some(View::Commits(v)) => {
+                        let range = v.get_range();
+                        self.views.push(View::Stats(Stats::new(range)));
+                    }
+                    Some(View::Stats(v)) => {
+                        let stat = v.current_stat().clone();
+                        let range = v.commit_range().clone();
+                        self.views.push(View::Diff(Diff::new(&stat, &range)));
+                    }
+                    _ => {}
+                },
+                _ => {
+                    console!("Unhandled: {}", key);
+                }
             }
         }
     }

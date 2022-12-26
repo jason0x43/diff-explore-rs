@@ -40,7 +40,7 @@ pub trait ListCursor: ListInfo {
 
     fn cursor_down(&mut self) {
         if self.list_count() == 0 {
-            return
+            return;
         }
         let cursor = min(self.cursor() + 1, self.list_count() - 1);
         self.list_state().select(Some(cursor));
@@ -48,7 +48,7 @@ pub trait ListCursor: ListInfo {
 
     fn cursor_page_down(&mut self) {
         if self.list_count() == 0 {
-            return
+            return;
         }
         let cursor =
             min(self.cursor() + self.list_height(), self.list_count() - 1);
@@ -57,7 +57,7 @@ pub trait ListCursor: ListInfo {
 
     fn cursor_up(&mut self) {
         if self.list_count() == 0 {
-            return
+            return;
         }
         let cursor = self.cursor();
         let delta = min(self.cursor(), 1);
@@ -66,10 +66,19 @@ pub trait ListCursor: ListInfo {
 
     fn cursor_page_up(&mut self) {
         if self.list_count() == 0 {
-            return
+            return;
         }
         let cursor = self.cursor();
         let delta = min(cursor, self.list_height());
         self.list_state().select(Some(cursor - delta));
+    }
+
+    fn cursor_to_bottom(&mut self) {
+        let height = self.list_count();
+        self.list_state().select(Some(height - 1));
+    }
+
+    fn cursor_to_top(&mut self) {
+        self.list_state().select(Some(0));
     }
 }

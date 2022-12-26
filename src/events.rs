@@ -10,6 +10,7 @@ use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 
 use crate::git::git_root;
 
+#[derive(Debug)]
 pub enum Key {
     Enter,
     Escape,
