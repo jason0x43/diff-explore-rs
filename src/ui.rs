@@ -6,7 +6,7 @@ use crossterm::{
         LeaveAlternateScreen,
     },
 };
-use list_helper_core::{ListCursor, HasListCount};
+use list_helper_core::ListInfo;
 use std::io::{self, Stdout};
 use tui::{
     backend::CrosstermBackend,
@@ -22,7 +22,7 @@ use crate::{
     events::{Events, InputEvent},
     stack::Stack,
     stats::StatsView,
-    statusline::{StatusLineView, HasStatus},
+    statusline::{Status, StatusLineView},
     widget::RenderBorderedWidget,
 };
 
@@ -53,19 +53,19 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
     match app.views.top() {
         Some(View::Commits(v)) => {
             app.statusline.set_status(v.status());
-            app.statusline.set_location(v.cursor(), v.list_count());
+            app.statusline.set_location(v.list_pos(), v.list_count());
             let w = CommitsView::new(v);
             f.render_widget(w, content_rect);
         }
         Some(View::Stats(v)) => {
             app.statusline.set_status(v.status());
-            app.statusline.set_location(v.cursor(), v.list_count());
+            app.statusline.set_location(v.list_pos(), v.list_count());
             let w = StatsView::new(v);
             f.render_widget(w, content_rect);
         }
         Some(View::Diff(v)) => {
             app.statusline.set_status(v.status());
-            app.statusline.set_location(v.last_line(), v.list_count());
+            app.statusline.set_location(v.list_pos(), v.list_count());
             let w = DiffView::new(v);
             f.render_widget(w, content_rect);
         }

@@ -1,7 +1,7 @@
 use std::collections::LinkedList;
 
 use crate::console;
-use crate::statusline::{HasStatus, StatusLine};
+use crate::statusline::{Status, StatusLine};
 use crate::{
     commits::Commits, console::Console, diff::Diff, events::Key, stack::Stack,
     stats::Stats,

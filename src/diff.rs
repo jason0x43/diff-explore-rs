@@ -3,23 +3,22 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use list_helper_core::HasListCount;
+use list_helper_core::ListInfo;
 use tui::{
     buffer::Buffer,
     layout::Rect,
     style::{Color, Style},
     text::{Span, Spans},
-    widgets::{Block, List, ListItem, ListState, StatefulWidget, Widget},
+    widgets::{Paragraph, Widget},
 };
 
 use crate::{
     git::{git_diff_file, CommitRange, DiffFile, DiffLine, Stat},
-    widget::WidgetWithBlock, statusline::HasStatus,
+    statusline::Status,
 };
 
 #[derive(Debug, Clone)]
 pub struct Diff {
-    list: ListState,
     height: usize,
     offset: usize,
     diff: DiffFile,
@@ -35,7 +34,6 @@ impl Diff {
             diff,
             height: 0,
             offset: 0,
-            list: ListState::default(),
             stat: stat.clone(),
             range: range.clone(),
         }
@@ -56,10 +54,6 @@ impl Diff {
             &self.range,
             None,
         );
-    }
-
-    pub fn last_line(&self) -> usize {
-        min(self.offset + self.height, self.diff.lines.len())
     }
 
     pub fn scroll_up(&mut self) {
@@ -89,33 +83,30 @@ impl Diff {
     }
 }
 
-impl HasListCount for Diff {
+impl ListInfo for Diff {
     fn list_count(&self) -> usize {
         self.diff.lines.len()
     }
+
+    fn list_pos(&self) -> usize {
+        min(self.offset + self.height, self.diff.lines.len())
+    }
 }
 
-impl HasStatus for Diff {
+impl Status for Diff {
     fn status(&self) -> String {
         format!("{}: {}", self.range, self.stat.path)
     }
 }
 
-/// The Widget used to render Stats
+/// The Widget used to render a Diff
 pub struct DiffView<'a> {
     diff: &'a mut Diff,
-    block: Option<Block<'a>>,
 }
 
 impl<'a> DiffView<'a> {
     pub fn new(diff: &'a mut Diff) -> DiffView {
-        DiffView { diff, block: None }
-    }
-}
-
-impl<'a> WidgetWithBlock<'a> for DiffView<'a> {
-    fn block(&mut self, block: Block<'a>) {
-        self.block = Some(block);
+        DiffView { diff }
     }
 }
 
@@ -148,50 +139,45 @@ fn line_spans<'a>(
 
 impl<'a> Widget for DiffView<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        self.diff.height = area.height as usize;
+        let diff = self.diff;
+        diff.height = area.height as usize;
 
-        let items: Vec<ListItem> = self.diff.diff.lines[self.diff.offset..]
+        let lines: Vec<Spans> = diff
+            .diff
+            .lines
             .iter()
             .enumerate()
-            .map(|(i, c)| {
-                let line_nr = self.diff.offset + i;
-                if c.len() > 0 {
-                    let spans: Vec<Span> =
-                        match &self.diff.diff.line_meta[line_nr] {
-                            DiffLine::Add(meta) => {
-                                line_spans(8, 7, 2, meta.old, meta.new, c)
-                            }
-                            DiffLine::Del(meta) => {
-                                line_spans(7, 8, 1, meta.old, meta.new, c)
-                            }
-                            DiffLine::Same(meta) => {
-                                line_spans(7, 7, 17, meta.old, meta.new, c)
-                            }
-                            DiffLine::Start => [Span::styled(
-                                c.clone(),
-                                Style::default().fg(Color::Indexed(3)),
-                            )]
-                            .into(),
-                            DiffLine::Hunk => [Span::styled(
-                                c.clone(),
-                                Style::default().fg(Color::Indexed(6)),
-                            )]
-                            .into(),
-                            _ => [Span::from(c.clone())].into(),
-                        };
-                    ListItem::new(Spans::from(spans))
+            .map(|(line_nr, line)| {
+                if line.len() > 0 {
+                    Spans::from(match &diff.diff.line_meta[line_nr] {
+                        DiffLine::Add(meta) => {
+                            line_spans(8, 7, 2, meta.old, meta.new, line)
+                        }
+                        DiffLine::Del(meta) => {
+                            line_spans(7, 8, 1, meta.old, meta.new, line)
+                        }
+                        DiffLine::Same(meta) => {
+                            line_spans(7, 7, 17, meta.old, meta.new, line)
+                        }
+                        DiffLine::Start => [Span::styled(
+                            line.clone(),
+                            Style::default().fg(Color::Indexed(3)),
+                        )]
+                        .into(),
+                        DiffLine::Hunk => [Span::styled(
+                            line.clone(),
+                            Style::default().fg(Color::Indexed(6)),
+                        )]
+                        .into(),
+                        _ => [Span::from(line.clone())].into(),
+                    })
                 } else {
-                    ListItem::new(Spans::from(vec![Span::from("")]))
+                    Spans::from(vec![Span::from("")])
                 }
             })
             .collect();
 
-        let mut list = List::new(items);
-
-        if let Some(b) = self.block {
-            list = list.block(b);
-        };
-
-        StatefulWidget::render(list, area, buf, &mut self.diff.list);
+        let view = Paragraph::new(lines).scroll((diff.offset as u16, 0));
+        Widget::render(view, area, buf);
     }
 }

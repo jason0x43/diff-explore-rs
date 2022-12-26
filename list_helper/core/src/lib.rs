@@ -22,11 +22,14 @@ impl ListData {
     }
 }
 
-pub trait HasListCount {
+pub trait ListInfo {
+    /// Return the number of list items
     fn list_count(&self) -> usize;
+    /// Return the current position in the list
+    fn list_pos(&self) -> usize;
 }
 
-pub trait ListCursor: HasListCount {
+pub trait ListCursor: ListInfo {
     fn list_state(&mut self) -> &mut ListState;
 
     fn list_height(&self) -> usize;

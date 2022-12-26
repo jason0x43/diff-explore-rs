@@ -5,7 +5,7 @@ use tui::{
     widgets::{Paragraph, Widget},
 };
 
-pub trait HasStatus {
+pub trait Status {
     fn status(&self) -> String;
 }
 

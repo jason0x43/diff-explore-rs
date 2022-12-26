@@ -1,4 +1,4 @@
-use list_helper_core::{HasListCount, ListCursor, ListData};
+use list_helper_core::{ListCursor, ListData, ListInfo};
 use list_helper_macro::ListCursor;
 use tui::{
     buffer::Buffer,
@@ -10,7 +10,7 @@ use tui::{
 
 use crate::{
     git::{git_diff_stat, CommitRange, Stat},
-    statusline::HasStatus,
+    statusline::Status,
     widget::WidgetWithBlock,
 };
 
@@ -19,12 +19,6 @@ pub struct Stats {
     list: ListData,
     range: CommitRange,
     stats: Vec<Stat>,
-}
-
-impl HasListCount for Stats {
-    fn list_count(&self) -> usize {
-        self.stats.len()
-    }
 }
 
 impl Stats {
@@ -46,7 +40,17 @@ impl Stats {
     }
 }
 
-impl HasStatus for Stats {
+impl ListInfo for Stats {
+    fn list_count(&self) -> usize {
+        self.stats.len()
+    }
+
+    fn list_pos(&self) -> usize {
+        self.cursor()
+    }
+}
+
+impl Status for Stats {
     fn status(&self) -> String {
         format!("{}", self.range)
     }

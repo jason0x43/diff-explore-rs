@@ -1,5 +1,5 @@
 use chrono::{Datelike, NaiveDateTime, Timelike, Utc};
-use list_helper_core::{HasListCount, ListCursor, ListData};
+use list_helper_core::{ListCursor, ListData, ListInfo};
 use list_helper_macro::ListCursor;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -8,12 +8,13 @@ use tui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Span, Spans},
-    widgets::{Block, List, ListItem, ListState, StatefulWidget, Widget},
+    widgets::{Block, ListItem, ListState, StatefulWidget, Widget, List},
 };
 
 use crate::{
     git::{git_log, Commit, CommitRange, Decoration},
-    graph::{CommitGraph, CommitNode}, statusline::HasStatus,
+    graph::{CommitGraph, CommitNode},
+    statusline::Status,
 };
 use crate::{graph::Track, widget::WidgetWithBlock};
 
@@ -23,12 +24,6 @@ pub struct Commits {
     commits: Vec<Commit>,
     mark: Option<usize>,
     graph: CommitGraph,
-}
-
-impl HasListCount for Commits {
-    fn list_count(&self) -> usize {
-        self.commits.len()
-    }
 }
 
 impl Commits {
@@ -84,7 +79,17 @@ impl Commits {
     }
 }
 
-impl HasStatus for Commits {
+impl ListInfo for Commits {
+    fn list_count(&self) -> usize {
+        self.commits.len()
+    }
+
+    fn list_pos(&self) -> usize {
+        self.cursor()
+    }
+}
+
+impl Status for Commits {
     fn status(&self) -> String {
         format!("{}", self.get_range())
     }
@@ -146,22 +151,38 @@ fn draw_graph_node(node: &CommitNode) -> String {
             }
             Track::MergeDown => {
                 match node.tracks.get(i - 1) {
-                    Some(Track::Node) => { graph.push('╶'); }
-                    _ => { graph.push('─'); }
+                    Some(Track::Node) => {
+                        graph.push('╶');
+                    }
+                    _ => {
+                        graph.push('─');
+                    }
                 }
                 match node.tracks.get(i + 1) {
-                    Some(Track::MergeDown) => { graph.push('┴'); }
-                    _ => { graph.push('╯'); }
+                    Some(Track::MergeDown) => {
+                        graph.push('┴');
+                    }
+                    _ => {
+                        graph.push('╯');
+                    }
                 }
             }
             Track::MergeUp => {
                 match node.tracks.get(i - 1) {
-                    Some(Track::Node) => { graph.push('╶'); }
-                    _ => { graph.push('─'); }
+                    Some(Track::Node) => {
+                        graph.push('╶');
+                    }
+                    _ => {
+                        graph.push('─');
+                    }
                 }
                 match node.tracks.get(i + 1) {
-                    Some(Track::MergeUp) => { graph.push('┬'); }
-                    _ => { graph.push('╮'); }
+                    Some(Track::MergeUp) => {
+                        graph.push('┬');
+                    }
+                    _ => {
+                        graph.push('╮');
+                    }
                 }
             }
         }
