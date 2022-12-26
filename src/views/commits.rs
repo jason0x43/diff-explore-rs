@@ -240,6 +240,9 @@ fn draw_graph_node(node: &CommitNode) -> String {
             }
             Track::Node => {
                 graph.push(BULLET);
+                if let Some(Track::Continue) = node.tracks.get(i + 1) {
+                    graph.push(' ');
+                }
             }
             Track::MergeDown => {
                 match node.tracks.get(i - 1) {
