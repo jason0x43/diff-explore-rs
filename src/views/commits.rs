@@ -11,7 +11,7 @@ use tui::{
     widgets::{Block, List, ListItem, ListState, StatefulWidget, Widget},
 };
 
-use crate::widget::WidgetWithBlock;
+use crate::{console, widget::WidgetWithBlock};
 use crate::{
     git::{git_log, Commit, CommitRange, Decoration},
     views::statusline::Status,
@@ -89,15 +89,16 @@ impl CommitGraph {
                         node_tracks.push(Track::Node);
                     }
 
-                    // create tracks for all this commit's remaining parents
-                    for p in parent_hash_iter {
+                    for _ in 1..c.parent_hashes.len() {
                         // don't add renderable tracks if the commit only has
                         // one parent (a Node track will already have been added
                         // for that) or if the track list already contains the
                         // commit (in which case a new track isn't needed)
-                        if c.parent_hashes.len() > 1 && !tracks.contains(p) {
-                            node_tracks.push(Track::MergeUp);
-                        }
+                        node_tracks.push(Track::MergeUp);
+                    }
+
+                    // create tracks for all this commit's remaining parents
+                    for p in parent_hash_iter {
                         tracks.push(p.clone());
                     }
 
@@ -232,16 +233,28 @@ const BULLET: char = '•';
 fn draw_graph_node(node: &CommitNode) -> String {
     let mut graph = String::from("");
 
+    console!("{:?}", node.tracks);
+
     for i in 0..node.tracks.len() {
         match node.tracks[i] {
             Track::Continue => {
                 graph.push('│');
-                graph.push(' ');
+                match node.tracks.get(i + 1) {
+                    Some(Track::Continue) | Some(Track::Node) => {
+                        graph.push(' ');
+                    }
+                    _ => {}
+                }
             }
             Track::Node => {
                 graph.push(BULLET);
                 if let Some(Track::Continue) = node.tracks.get(i + 1) {
-                    graph.push(' ');
+                    match node.tracks.get(i + 2) {
+                        Some(Track::MergeUp) | Some(Track::MergeDown) => {
+                            graph.push('╶');
+                        }
+                        _ => graph.push(' '),
+                    }
                 }
             }
             Track::MergeDown => {
