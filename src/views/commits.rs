@@ -238,7 +238,17 @@ fn draw_graph_node(node: &CommitNode) -> String {
     for i in 0..node.tracks.len() {
         match node.tracks[i] {
             Track::Continue => {
+                if i > 0 {
+                    match node.tracks.get(i - 1) {
+                        Some(Track::MergeUp) | Some(Track::MergeDown) => {
+                            graph.push(' ');
+                        }
+                        _ => {}
+                    }
+                }
+
                 graph.push('│');
+
                 match node.tracks.get(i + 1) {
                     Some(Track::Continue) | Some(Track::Node) => {
                         graph.push(' ');
