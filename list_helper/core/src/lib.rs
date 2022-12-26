@@ -51,7 +51,7 @@ pub trait ListCursor: ListInfo {
             return;
         }
         let cursor =
-            min(self.cursor() + self.list_height(), self.list_count() - 1);
+            min(self.cursor() + self.list_height() - 1, self.list_count() - 1);
         self.list_state().select(Some(cursor));
     }
 
@@ -69,7 +69,7 @@ pub trait ListCursor: ListInfo {
             return;
         }
         let cursor = self.cursor();
-        let delta = min(cursor, self.list_height());
+        let delta = min(cursor, self.list_height() - 1);
         self.list_state().select(Some(cursor - delta));
     }
 

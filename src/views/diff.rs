@@ -62,7 +62,7 @@ impl Diff {
     }
 
     pub fn page_up(&mut self) {
-        let delta = min(self.height, self.offset);
+        let delta = min(self.height - 1, self.offset);
         self.offset -= delta;
     }
 
@@ -77,7 +77,7 @@ impl Diff {
     pub fn page_down(&mut self) {
         if self.diff.lines.len() - self.offset > self.height {
             let limit = self.diff.lines.len() - self.offset - self.height;
-            let delta = min(limit, self.height);
+            let delta = min(limit, self.height - 1);
             self.offset += delta;
         }
     }
