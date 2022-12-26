@@ -1,5 +1,5 @@
 use std::{
-    cmp::min,
+    cmp::{max, min},
     path::{Path, PathBuf},
 };
 
@@ -117,15 +117,16 @@ fn line_spans<'a>(
     old: u32,
     new: u32,
     line: &str,
+    line_nr_width: usize,
 ) -> Vec<Span<'a>> {
     [
         Span::styled(
-            old.to_string(),
+            format!("{:>width$}", old, width = line_nr_width),
             Style::default().fg(Color::Indexed(old_color)),
         ),
         Span::from(" "),
         Span::styled(
-            new.to_string(),
+            format!("{:>width$}", new, width = line_nr_width),
             Style::default().fg(Color::Indexed(new_color)),
         ),
         Span::from(" "),
@@ -142,6 +143,15 @@ impl<'a> Widget for DiffView<'a> {
         let diff = self.diff;
         diff.height = area.height as usize;
 
+        let line_nr_width = match diff.diff.line_meta.iter().last() {
+            Some(DiffLine::Add(meta))
+            | Some(DiffLine::Del(meta))
+            | Some(DiffLine::Same(meta)) => {
+                max(meta.old.to_string().len(), meta.new.to_string().len())
+            }
+            _ => 0,
+        } as usize;
+
         let lines: Vec<Spans> = diff
             .diff
             .lines
@@ -150,15 +160,33 @@ impl<'a> Widget for DiffView<'a> {
             .map(|(line_nr, line)| {
                 if line.len() > 0 {
                     Spans::from(match &diff.diff.line_meta[line_nr] {
-                        DiffLine::Add(meta) => {
-                            line_spans(8, 7, 2, meta.old, meta.new, line)
-                        }
-                        DiffLine::Del(meta) => {
-                            line_spans(7, 8, 1, meta.old, meta.new, line)
-                        }
-                        DiffLine::Same(meta) => {
-                            line_spans(7, 7, 17, meta.old, meta.new, line)
-                        }
+                        DiffLine::Add(meta) => line_spans(
+                            8,
+                            7,
+                            2,
+                            meta.old,
+                            meta.new,
+                            line,
+                            line_nr_width,
+                        ),
+                        DiffLine::Del(meta) => line_spans(
+                            7,
+                            8,
+                            1,
+                            meta.old,
+                            meta.new,
+                            line,
+                            line_nr_width,
+                        ),
+                        DiffLine::Same(meta) => line_spans(
+                            7,
+                            7,
+                            17,
+                            meta.old,
+                            meta.new,
+                            line,
+                            line_nr_width,
+                        ),
                         DiffLine::Start => [Span::styled(
                             line.clone(),
                             Style::default().fg(Color::Indexed(3)),
