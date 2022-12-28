@@ -12,19 +12,24 @@ pub enum Track {
 
 #[derive(Debug, Clone)]
 pub struct CommitCell {
-    /// the direct ancestor hash of the cell
+    /// the direct ancestor commit of the cell
     pub hash: Option<String>,
+    /// the commit that this cell is related to; transient cells (Merges,
+    /// ContinueRights, etc.) will have `related` but not `hash`; any cell with
+    /// a hash value should have `hash` == `related`
+    pub related: String,
     /// how the cell relates to the next row
     pub track: Track,
 }
 
 impl CommitCell {
-    fn new(hash: Option<&String>, track: Track) -> CommitCell {
+    fn new(hash: Option<&String>, related: String, track: Track) -> CommitCell {
         CommitCell {
             hash: match hash {
                 Some(s) => Some(s.clone()),
                 _ => None,
             },
+            related,
             track,
         }
     }
@@ -39,18 +44,6 @@ pub struct CommitRow {
 pub struct CommitGraph {
     pub graph: Vec<CommitRow>,
 }
-
-const SPACE_CHAR: char = ' ';
-const BULLET_CHAR: char = '•';
-const BIG_BULLET_CHAR: char = '●';
-const RIGHT_UP_CHAR: char = '╯';
-const RIGHT_DOWN_CHAR: char = '╮';
-const TEE_DOWN_CHAR: char = '┬';
-const TEE_UP_CHAR: char = '┴';
-const VLINE_CHAR: char = '│';
-const UP_RIGHT_CHAR: char = '╭';
-const HALF_HLINE_CHAR: char = '╶';
-const HLINE_CHAR: char = '─';
 
 // Drawing rules
 //
@@ -115,9 +108,10 @@ impl CommitGraph {
                         if let Some(t) = prev_tracks.get(i) {
                             if t.hash == tracks[i].hash {
                                 tracks[i].track = Track::Continue;
-                            } else if let Some(x) = prev_tracks
-                                .iter()
-                                .position(|p| p.hash == tracks[i].hash)
+                            } else if let Some(x) =
+                                prev_tracks.iter().position(|p| {
+                                    p.hash.is_some() && p.hash == tracks[i].hash
+                                })
                             {
                                 for y in i..x {
                                     if y < tracks.len() {
@@ -125,6 +119,7 @@ impl CommitGraph {
                                     } else {
                                         tracks.push(CommitCell::new(
                                             None,
+                                            tracks[i].hash.clone().unwrap(),
                                             Track::ContinueRight,
                                         ));
                                     }
@@ -134,6 +129,7 @@ impl CommitGraph {
                                 } else {
                                     tracks.push(CommitCell::new(
                                         None,
+                                        tracks[i].hash.clone().unwrap(),
                                         Track::ContinueUp,
                                     ));
                                 }
@@ -154,6 +150,7 @@ impl CommitGraph {
                         // commit's track
                         if let Some(parent_hash) = parent_hash_iter.next() {
                             tracks[x].hash = Some(parent_hash.clone());
+                            tracks[x].related = tracks[x].hash.clone().unwrap();
                             tracks[x].track = Track::Node;
                         }
 
@@ -161,6 +158,8 @@ impl CommitGraph {
                         // in the track list
                         for y in x + 1..tracks.len() {
                             if tracks[y].hash == Some(c.hash.clone()) {
+                                tracks[y].related =
+                                    tracks[y].hash.clone().unwrap();
                                 tracks[y].hash = None;
                                 tracks[y].track = Track::Branch;
                             }
@@ -168,15 +167,21 @@ impl CommitGraph {
                     } else {
                         // this commit's hash isn't in the tracks list -- create
                         // a new track for it
+                        let hash = parent_hash_iter.next();
                         tracks.push(CommitCell::new(
-                            parent_hash_iter.next(),
+                            hash,
+                            String::from(hash.unwrap()),
                             Track::Node,
                         ));
                     }
 
                     // create tracks for all this commit's remaining parents
                     for p in parent_hash_iter {
-                        tracks.push(CommitCell::new(Some(p), Track::Merge));
+                        tracks.push(CommitCell::new(
+                            Some(p),
+                            p.clone(),
+                            Track::Merge,
+                        ));
                     }
 
                     prev_tracks = tracks.clone();
@@ -187,152 +192,5 @@ impl CommitGraph {
                 })
                 .collect::<Vec<CommitRow>>(),
         }
-    }
-
-    pub fn draw_graph_node(&self, node: usize) -> String {
-        let node = &self.graph[node];
-        let mut graph = String::from("");
-
-        // set to true when a horizontal line should be drawn
-        let mut draw_hline = false;
-
-        if node.tracks.len() == 0 {
-            return String::from("");
-        }
-
-        // render the first track by itself to simplify look-backs when
-        // processing the remaining tracks
-        match node.tracks[0].track {
-            Track::Continue => {
-                graph.push(VLINE_CHAR);
-            }
-            Track::Node => {
-                // if there's a merge after this node, draw a horizontal line
-                // from this node to the merge
-                draw_hline = node
-                    .tracks
-                    .iter()
-                    .find(|t| matches!(t.track, Track::Merge | Track::Branch))
-                    .is_some();
-
-                if node
-                    .tracks
-                    .iter()
-                    .find(|t| t.track == Track::Merge)
-                    .is_some()
-                {
-                    graph.push(BIG_BULLET_CHAR);
-                } else {
-                    graph.push(BULLET_CHAR);
-                }
-            }
-            _ => {}
-        }
-
-        for i in 1..node.tracks.len() {
-            match node.tracks[i].track {
-                Track::Continue => {
-                    if draw_hline {
-                        if node.tracks[i - 1].track == Track::Node {
-                            graph.push(HALF_HLINE_CHAR);
-                        } else {
-                            graph.push(HLINE_CHAR);
-                        }
-                    } else if matches!(
-                        node.tracks[i - 1].track,
-                        Track::Merge
-                            | Track::Branch
-                            | Track::Continue
-                            | Track::Node
-                    ) {
-                        graph.push(SPACE_CHAR);
-                    }
-
-                    graph.push(VLINE_CHAR);
-                }
-
-                Track::ContinueRight => {
-                    if node.tracks[i - 1].track == Track::ContinueRight {
-                        // this is an intermediate ContinueRight
-                        graph.push(HLINE_CHAR);
-                        graph.push(HLINE_CHAR);
-                    } else {
-                        // this is the initial ContinueRight
-                        graph.push(SPACE_CHAR);
-                        graph.push(UP_RIGHT_CHAR);
-                    }
-                }
-
-                Track::ContinueUp => {
-                    graph.push(HLINE_CHAR);
-                    graph.push(RIGHT_UP_CHAR);
-                }
-
-                Track::Node => {
-                    if matches!(
-                        node.tracks[i - 1].track,
-                        Track::Merge
-                            | Track::Branch
-                            | Track::Continue
-                            | Track::Node
-                    ) {
-                        graph.push(SPACE_CHAR);
-                    }
-
-                    // enable draw_hline if there's a merge later in the track
-                    draw_hline = node
-                        .tracks
-                        .iter()
-                        .skip(i + 1)
-                        .find(|t| {
-                            matches!(t.track, Track::Merge | Track::Branch)
-                        })
-                        .is_some();
-
-                    if node
-                        .tracks
-                        .iter()
-                        .skip(i + 1)
-                        .find(|t| t.track == Track::Merge)
-                        .is_some()
-                    {
-                        graph.push(BIG_BULLET_CHAR);
-                    } else {
-                        graph.push(BULLET_CHAR);
-                    }
-                }
-
-                Track::Branch | Track::Merge => {
-                    if node.tracks[i - 1].track == Track::Node {
-                        graph.push(HALF_HLINE_CHAR);
-                    } else {
-                        graph.push(HLINE_CHAR);
-                    }
-
-                    let (tee_char, corner_char) =
-                        if node.tracks[i].track == Track::Branch {
-                            (TEE_UP_CHAR, RIGHT_UP_CHAR)
-                        } else {
-                            (TEE_DOWN_CHAR, RIGHT_DOWN_CHAR)
-                        };
-
-                    // There may be serveral Merges or Braches in a row, in
-                    // which case the intermediate ones should be Ts, and the
-                    // last one should be a corner
-                    if node.tracks.len() > i + 1
-                        && node.tracks[i + 1].track == node.tracks[i].track
-                    {
-                        graph.push(tee_char);
-                    } else {
-                        graph.push(corner_char);
-                    }
-
-                    // a merge ends an hline
-                    draw_hline = false;
-                }
-            }
-        }
-
-        graph
     }
 }

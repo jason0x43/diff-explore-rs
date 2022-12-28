@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use list_helper_core::{ListCursor, ListData, ListInfo};
 use list_helper_macro::ListCursor;
 use once_cell::sync::Lazy;
@@ -12,6 +14,7 @@ use tui::{
 
 use crate::{
     git::{git_log, Commit, CommitRange, Decoration},
+    graph::{CommitRow, Track},
     time::RelativeTime,
     views::statusline::Status,
 };
@@ -109,6 +112,196 @@ impl<'a> CommitsView<'a> {
     }
 }
 
+const SPACE_CHAR: &str = " ";
+const BULLET_CHAR: &str = "•";
+const BIG_BULLET_CHAR: &str = "●";
+const RIGHT_UP_CHAR: &str = "╯";
+const RIGHT_DOWN_CHAR: &str = "╮";
+const TEE_DOWN_CHAR: &str = "┬";
+const TEE_UP_CHAR: &str = "┴";
+const VLINE_CHAR: &str = "│";
+const UP_RIGHT_CHAR: &str = "╭";
+const HALF_HLINE_CHAR: &str = "╶";
+const HLINE_CHAR: &str = "─";
+
+fn get_commit_color<'a>(
+    hash: &String,
+    colors: &'a mut HashMap<String, Color>,
+) -> Color {
+    if !colors.contains_key(hash) {
+        colors
+            .insert(hash.clone(), Color::Indexed(1 + (colors.len() % 6) as u8));
+    }
+    *colors.get(hash).unwrap()
+}
+
+fn cell<'a>(
+    hash: &String,
+    char: &'a str,
+    colors: &mut HashMap<String, Color>,
+) -> Span<'a> {
+    Span::styled(char, Style::default().fg(get_commit_color(hash, colors)))
+}
+
+fn draw_graph_node<'a>(
+    node: CommitRow,
+    colors: &mut HashMap<String, Color>,
+) -> Vec<Span<'a>> {
+    let mut graph: Vec<Span> = vec![];
+
+    // set to the commit hash of the target when a horizontal line should be
+    // drawn
+    let mut draw_hline: Option<&String> = None;
+
+    if node.tracks.len() == 0 {
+        return graph;
+    }
+
+    let track = &node.tracks[0];
+
+    // render the first track by itself to simplify look-backs when
+    // processing the remaining tracks
+    match node.tracks[0].track {
+        Track::Continue => {
+            graph.push(cell(&track.related, VLINE_CHAR, colors));
+        }
+        Track::Node => {
+            // if there's a merge after this node, draw a horizontal line
+            // from this node to the merge
+            draw_hline = if let Some(t) = node
+                .tracks
+                .iter()
+                .find(|t| matches!(t.track, Track::Merge | Track::Branch))
+            {
+                Some(&t.related)
+            } else {
+                None
+            };
+
+            if node
+                .tracks
+                .iter()
+                .find(|t| t.track == Track::Merge)
+                .is_some()
+            {
+                graph.push(Span::from(BIG_BULLET_CHAR));
+            } else {
+                graph.push(Span::from(BULLET_CHAR));
+            }
+        }
+        _ => {}
+    }
+
+    for i in 1..node.tracks.len() {
+        let track = &node.tracks[i];
+
+        match track.track {
+            Track::Continue => {
+                if let Some(h) = draw_hline {
+                    if node.tracks[i - 1].track == Track::Node {
+                        graph.push(cell(&h, HALF_HLINE_CHAR, colors));
+                    } else {
+                        graph.push(cell(&h, HLINE_CHAR, colors));
+                    }
+                } else if matches!(
+                    node.tracks[i - 1].track,
+                    Track::Merge
+                        | Track::Branch
+                        | Track::Continue
+                        | Track::Node
+                ) {
+                    graph.push(Span::from(SPACE_CHAR));
+                }
+
+                graph.push(cell(&track.related, VLINE_CHAR, colors));
+            }
+
+            Track::ContinueRight => {
+                if node.tracks[i - 1].track == Track::ContinueRight {
+                    // this is an intermediate ContinueRight
+                    let hash = &node.tracks[i - 1].related;
+                    graph.push(cell(&hash, HLINE_CHAR, colors));
+                    graph.push(cell(&hash, HLINE_CHAR, colors));
+                } else {
+                    // this is the initial ContinueRight
+                    graph.push(Span::from(SPACE_CHAR));
+                    graph.push(cell(&track.related, UP_RIGHT_CHAR, colors));
+                }
+            }
+
+            Track::ContinueUp => {
+                graph.push(cell(&track.related, HLINE_CHAR, colors));
+                graph.push(cell(&track.related, RIGHT_UP_CHAR, colors));
+            }
+
+            Track::Node => {
+                if matches!(
+                    node.tracks[i - 1].track,
+                    Track::Merge
+                        | Track::Branch
+                        | Track::Continue
+                        | Track::Node
+                ) {
+                    graph.push(Span::from(SPACE_CHAR));
+                }
+
+                // enable draw_hline if there's a merge later in the track
+                draw_hline = if let Some(t) =
+                    node.tracks.iter().skip(i + 1).find(|t| {
+                        matches!(t.track, Track::Merge | Track::Branch)
+                    }) {
+                    Some(&t.related)
+                } else {
+                    None
+                };
+
+                if node
+                    .tracks
+                    .iter()
+                    .skip(i + 1)
+                    .find(|t| t.track == Track::Merge)
+                    .is_some()
+                {
+                    graph.push(Span::from(BIG_BULLET_CHAR));
+                } else {
+                    graph.push(Span::from(BULLET_CHAR));
+                }
+            }
+
+            Track::Branch | Track::Merge => {
+                if node.tracks[i - 1].track == Track::Node {
+                    graph.push(cell(&track.related, HALF_HLINE_CHAR, colors));
+                } else {
+                    graph.push(cell(&track.related, HLINE_CHAR, colors));
+                }
+
+                let (tee_char, corner_char) =
+                    if node.tracks[i].track == Track::Branch {
+                        (TEE_UP_CHAR, RIGHT_UP_CHAR)
+                    } else {
+                        (TEE_DOWN_CHAR, RIGHT_DOWN_CHAR)
+                    };
+
+                // There may be several Merges or Braches in a row, in
+                // which case the intermediate ones should be Ts, and the
+                // last one should be a corner
+                if node.tracks.len() > i + 1
+                    && node.tracks[i + 1].track == node.tracks[i].track
+                {
+                    graph.push(cell(&track.related, tee_char, colors));
+                } else {
+                    graph.push(cell(&track.related, corner_char, colors));
+                }
+
+                // a merge ends an hline
+                draw_hline = None;
+            }
+        }
+    }
+
+    graph
+}
+
 impl<'a> WidgetWithBlock<'a> for CommitsView<'a> {
     fn block(&mut self, block: Block<'a>) {
         self.block = Some(block);
@@ -120,6 +313,7 @@ static COMMIT_RE: Lazy<Regex> =
 
 impl<'a> Widget for CommitsView<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        let mut colors: HashMap<String, Color> = HashMap::new();
         let height = area.height as usize;
         let cursor = self.commits.cursor();
 
@@ -193,7 +387,10 @@ impl<'a> Widget for CommitsView<'a> {
                     format!("{:width$}", c.author_name, width = author_width);
 
                 // draw the graph
-                let graph = self.commits.graph.draw_graph_node(i);
+                let graph = draw_graph_node(
+                    self.commits.graph.graph[i].clone(),
+                    &mut colors,
+                );
 
                 let mut item: Vec<Span> = vec![
                     Span::from(prefix),
@@ -212,9 +409,10 @@ impl<'a> Widget for CommitsView<'a> {
                         Style::default().fg(Color::Indexed(2)),
                     ),
                     Span::from(" "),
-                    Span::from(graph),
-                    Span::from(" "),
                 ];
+
+                item.extend(graph);
+                item.push(Span::from(" "));
 
                 let deco = Decoration::from_commit(c);
                 if let Some(head) = deco.head {
