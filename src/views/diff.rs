@@ -198,9 +198,9 @@ impl<'a> Widget for DiffView<'a> {
                     if line.len() > 0 {
                         Spans::from(match &diff.diff.line_meta[line_nr] {
                             DiffLine::Add(meta) => renderer
-                                .render(8, 7, 2, meta.old, meta.new, line),
+                                .render(16, 7, 2, meta.old, meta.new, line),
                             DiffLine::Del(meta) => renderer
-                                .render(7, 8, 1, meta.old, meta.new, line),
+                                .render(7, 16, 1, meta.old, meta.new, line),
                             DiffLine::Same(meta) => renderer
                                 .render(7, 7, 17, meta.old, meta.new, line),
                             DiffLine::Start => [Span::styled(
