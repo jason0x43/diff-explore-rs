@@ -3,6 +3,7 @@ mod events;
 mod git;
 mod graph;
 mod stack;
+mod time;
 mod ui;
 mod views;
 mod widget;

@@ -4,6 +4,10 @@ use std::{
     process::{Command, Output},
 };
 
+use chrono::NaiveDateTime;
+
+use crate::time::RelativeTime;
+
 #[derive(Debug, Clone)]
 pub struct Commit {
     pub hash: String,
@@ -11,7 +15,7 @@ pub struct Commit {
     pub decoration: String,
     pub author_name: String,
     pub author_email: String,
-    pub timestamp: u64,
+    pub timestamp: NaiveDateTime,
     pub subject: String,
 }
 
@@ -28,9 +32,19 @@ impl Commit {
             decoration: parts[2].into(),
             author_name: parts[3].into(),
             author_email: parts[4].into(),
-            timestamp: parts[5].parse().unwrap(),
+            timestamp: NaiveDateTime::from_timestamp_opt(
+                parts[5].parse().unwrap(),
+                0,
+            )
+            .unwrap(),
             subject: parts[6].into(),
         }
+    }
+}
+
+impl RelativeTime for Commit {
+    fn relative_time(&self) -> String {
+        self.timestamp.relative_time()
     }
 }
 

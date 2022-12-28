@@ -1,4 +1,3 @@
-use chrono::{Datelike, NaiveDateTime, Timelike, Utc};
 use list_helper_core::{ListCursor, ListData, ListInfo};
 use list_helper_macro::ListCursor;
 use once_cell::sync::Lazy;
@@ -13,6 +12,7 @@ use tui::{
 
 use crate::{
     git::{git_log, Commit, CommitRange, Decoration},
+    time::RelativeTime,
     views::statusline::Status,
 };
 use crate::{graph::CommitGraph, widget::WidgetWithBlock};
@@ -115,25 +115,6 @@ impl<'a> WidgetWithBlock<'a> for CommitsView<'a> {
     }
 }
 
-fn relative_time(c: &Commit) -> String {
-    let ctime = c.timestamp;
-    let time = NaiveDateTime::from_timestamp_opt(ctime as i64, 0).unwrap();
-    let now = Utc::now().naive_utc();
-    if time.year() != now.year() {
-        format!("{}Y", now.year() - time.year())
-    } else if time.month() != now.month() {
-        format!("{}M", now.month() - time.month())
-    } else if time.day() != now.day() {
-        format!("{}D", now.day() - time.day())
-    } else if time.hour() != now.hour() {
-        format!("{}h", now.hour() - time.hour())
-    } else if time.minute() != now.minute() {
-        format!("{}m", now.minute() - time.minute())
-    } else {
-        format!("{}s", now.second() - time.second())
-    }
-}
-
 static COMMIT_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"^\w+(\(\w+\))?!?:.").unwrap());
 
@@ -155,16 +136,16 @@ impl<'a> Widget for CommitsView<'a> {
             .author_name
             .len();
 
-        let time_width = relative_time(
-            self.commits
-                .commits
-                .iter()
-                .max_by(|x, y| {
-                    relative_time(x).len().cmp(&relative_time(y).len())
-                })
-                .unwrap(),
-        )
-        .len();
+        let time_width = self
+            .commits
+            .commits
+            .iter()
+            .max_by(|x, y| {
+                x.relative_time().len().cmp(&y.relative_time().len())
+            })
+            .unwrap()
+            .relative_time()
+            .len();
 
         let items: Vec<ListItem> = self
             .commits
@@ -207,7 +188,7 @@ impl<'a> Widget for CommitsView<'a> {
                     }
                 };
 
-                let age = relative_time(c);
+                let age = c.relative_time();
                 let author =
                     format!("{:width$}", c.author_name, width = author_width);
 
