@@ -1,9 +1,10 @@
 mod app;
-mod views;
 mod events;
 mod git;
+mod graph;
 mod stack;
 mod ui;
+mod views;
 mod widget;
 
 use app::App;
