@@ -21,7 +21,8 @@ impl Location {
     }
 
     fn to_string(&self) -> String {
-        format!("{}/{}", self.pos, self.total)
+        // position is 1-based
+        format!("{}/{}", self.pos + 1, self.total)
     }
 }
 
