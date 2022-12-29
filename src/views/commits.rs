@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{cmp::min, collections::HashMap};
 
 use list_helper_core::{ListCursor, ListData, ListInfo};
 use list_helper_macro::ListCursor;
@@ -16,7 +16,7 @@ use crate::{
     git::{git_log, Commit, CommitRange, Decoration},
     graph::{CommitRow, Track},
     time::RelativeTime,
-    views::statusline::Status,
+    views::statusline::Status, string::Ellipses,
 };
 use crate::{graph::CommitGraph, widget::WidgetWithBlock};
 
@@ -322,14 +322,16 @@ impl<'a> Widget for CommitsView<'a> {
 
         let hash_width = self.commits.commits[0].hash.len();
 
-        let author_width = self
-            .commits
-            .commits
-            .iter()
-            .max_by(|x, y| x.author_name.len().cmp(&y.author_name.len()))
-            .unwrap()
-            .author_name
-            .len();
+        let author_width = min(
+            20,
+            self.commits
+                .commits
+                .iter()
+                .max_by(|x, y| x.author_name.len().cmp(&y.author_name.len()))
+                .unwrap()
+                .author_name
+                .len(),
+        );
 
         let time_width = self
             .commits
@@ -384,8 +386,11 @@ impl<'a> Widget for CommitsView<'a> {
                 };
 
                 let age = c.relative_time();
-                let author =
-                    format!("{:width$}", c.author_name, width = author_width);
+                let author = format!(
+                    "{:width$}",
+                    c.author_name.ellipses(author_width),
+                    width = author_width
+                );
 
                 // draw the graph
                 let graph = draw_graph_node(
