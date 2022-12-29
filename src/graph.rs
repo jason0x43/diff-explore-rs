@@ -13,7 +13,7 @@ pub enum Track {
 #[derive(Debug, Clone)]
 pub struct CommitCell {
     /// the direct ancestor commit of the cell
-    pub hash: Option<String>,
+    pub parent: Option<String>,
     /// the commit that this cell is related to; transient cells (Merges,
     /// ContinueRights, etc.) will have `related` but not `hash`; any cell with
     /// a hash value should have `hash` == `related`
@@ -23,9 +23,13 @@ pub struct CommitCell {
 }
 
 impl CommitCell {
-    fn new(hash: Option<&String>, related: String, track: Track) -> CommitCell {
+    fn new(
+        parent: Option<&String>,
+        related: String,
+        track: Track,
+    ) -> CommitCell {
         CommitCell {
-            hash: match hash {
+            parent: match parent {
                 Some(s) => Some(s.clone()),
                 _ => None,
             },
@@ -97,49 +101,82 @@ impl CommitGraph {
                     // used to walk through parent commits
                     let mut parent_hash_iter = c.parent_hashes.iter();
 
-                    tracks = tracks
+                    // initialize the current row of tracks with all the
+                    // non-None tracks from the previous row
+                    let temp_tracks: Vec<CommitCell> = tracks
                         .iter()
-                        .filter(|t| t.hash.is_some())
+                        .filter(|t| t.parent.is_some())
                         .map(|t| t.clone())
                         .collect();
 
-                    let num_tracks = tracks.len();
-                    for i in 0..num_tracks {
-                        if let Some(t) = prev_tracks.get(i) {
-                            if t.hash == tracks[i].hash {
-                                tracks[i].track = Track::Continue;
+                    tracks = vec![];
+
+                    let mut offset = 0;
+
+                    // add connections to the tracks in the previous row if
+                    // things have shifted
+                    for i in 0..temp_tracks.len() {
+                        let pi = i + offset;
+
+                        if let Some(prev_track) = prev_tracks.get(pi) {
+                            // there's a track corresponding to this one in the
+                            // previous tracks list
+
+                            let parent = &temp_tracks[i].parent;
+
+                            if prev_track.parent == *parent {
+                                // the parent in the previous track is the same
+                                // as this track -- it's a continue
+                                tracks.push(CommitCell {
+                                    track: Track::Continue,
+                                    ..prev_track.clone()
+                                });
                             } else if let Some(x) =
-                                prev_tracks.iter().position(|p| {
-                                    p.hash.is_some() && p.hash == tracks[i].hash
+                                prev_tracks.iter().skip(pi).position(|p| {
+                                    p.parent.is_some()
+                                        && p.parent == *parent
                                 })
                             {
-                                for y in i..x {
-                                    if y < tracks.len() {
-                                        tracks[y].track = Track::ContinueRight;
-                                    } else {
-                                        tracks.push(CommitCell::new(
-                                            None,
-                                            tracks[i].hash.clone().unwrap(),
-                                            Track::ContinueRight,
-                                        ));
-                                    }
-                                }
-                                if x < tracks.len() {
-                                    tracks[x].track = Track::ContinueUp;
-                                } else {
+                                // this track's parent is in a later track (x)
+                                // in the previous tracks list; mark any
+                                // tracks between i and x as continuations of
+                                // x's parent, adding new tracks as necessary
+
+                                // the search started at pi
+                                let x = x + pi;
+
+                                // push a continue cell to parent
+                                tracks.push(CommitCell::new(
+                                    parent.as_ref(),
+                                    parent.clone().unwrap(),
+                                    Track::ContinueRight,
+                                ));
+
+                                // push some connector cells to get to the
+                                // target track
+                                for _ in i + 1..x {
                                     tracks.push(CommitCell::new(
                                         None,
-                                        tracks[i].hash.clone().unwrap(),
-                                        Track::ContinueUp,
+                                        parent.clone().unwrap(),
+                                        Track::ContinueRight,
                                     ));
                                 }
+
+                                // push a connector cell to the target track
+                                tracks.push(CommitCell::new(
+                                    None,
+                                    parent.clone().unwrap(),
+                                    Track::ContinueUp,
+                                ));
+
+                                offset += x - i;
                             }
                         }
                     }
 
                     if let Some(x) = tracks
                         .iter()
-                        .position(|t| t.hash == Some(c.hash.clone()))
+                        .position(|t| t.parent == Some(c.hash.clone()))
                     {
                         // this commit's hash is in the track list, so its node
                         // will be inserted into the track list at the commit
@@ -149,18 +186,19 @@ impl CommitGraph {
                         // parents) will become the ancestor hash of this
                         // commit's track
                         if let Some(parent_hash) = parent_hash_iter.next() {
-                            tracks[x].hash = Some(parent_hash.clone());
-                            tracks[x].related = tracks[x].hash.clone().unwrap();
+                            tracks[x].parent = Some(parent_hash.clone());
+                            tracks[x].related =
+                                tracks[x].parent.clone().unwrap();
                             tracks[x].track = Track::Node;
                         }
 
                         // clear out any other instances of this commit's hash
                         // in the track list
                         for y in x + 1..tracks.len() {
-                            if tracks[y].hash == Some(c.hash.clone()) {
+                            if tracks[y].parent == Some(c.hash.clone()) {
                                 tracks[y].related =
-                                    tracks[y].hash.clone().unwrap();
-                                tracks[y].hash = None;
+                                    tracks[y].parent.clone().unwrap();
+                                tracks[y].parent = None;
                                 tracks[y].track = Track::Branch;
                             }
                         }
@@ -168,11 +206,13 @@ impl CommitGraph {
                         // this commit's hash isn't in the tracks list -- create
                         // a new track for it
                         let hash = parent_hash_iter.next();
-                        tracks.push(CommitCell::new(
-                            hash,
-                            String::from(hash.unwrap()),
-                            Track::Node,
-                        ));
+                        if hash.is_some() {
+                            tracks.push(CommitCell::new(
+                                hash,
+                                String::from(hash.unwrap()),
+                                Track::Node,
+                            ));
+                        }
                     }
 
                     // create tracks for all this commit's remaining parents

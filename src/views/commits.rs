@@ -208,6 +208,7 @@ fn draw_graph_node<'a>(
                     Track::Merge
                         | Track::Branch
                         | Track::Continue
+                        | Track::ContinueUp
                         | Track::Node
                 ) {
                     graph.push(Span::from(SPACE_CHAR));
