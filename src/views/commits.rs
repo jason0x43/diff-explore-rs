@@ -15,8 +15,9 @@ use tui::{
 use crate::{
     git::{git_log, Commit, CommitRange, Decoration},
     graph::{CommitRow, Track},
+    string::Ellipses,
     time::RelativeTime,
-    views::statusline::Status, string::Ellipses,
+    views::statusline::Status,
 };
 use crate::{graph::CommitGraph, widget::WidgetWithBlock};
 
@@ -316,7 +317,6 @@ impl<'a> Widget for CommitsView<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let mut colors: HashMap<String, Color> = HashMap::new();
         let height = area.height as usize;
-        let cursor = self.commits.cursor();
 
         self.commits.set_list_height(height);
 
@@ -350,41 +350,6 @@ impl<'a> Widget for CommitsView<'a> {
             .iter()
             .enumerate()
             .map(|(i, c)| {
-                let prefix = match self.commits.mark {
-                    Some(mark) => {
-                        if mark == i {
-                            if cursor > mark {
-                                "┏"
-                            } else if cursor < mark {
-                                "┗"
-                            } else {
-                                "╺"
-                            }
-                        } else if cursor == i {
-                            if cursor > mark {
-                                "┗"
-                            } else {
-                                "┏"
-                            }
-                        } else if i < cursor && i > mark
-                            || i > cursor && i < mark
-                        {
-                            "┃"
-                        } else {
-                            " "
-                        }
-                    }
-                    _ => {
-                        if i == cursor {
-                            "┗"
-                        } else if i < cursor {
-                            "┃"
-                        } else {
-                            " "
-                        }
-                    }
-                };
-
                 let age = c.relative_time();
                 let author = format!(
                     "{:width$}",
@@ -399,7 +364,6 @@ impl<'a> Widget for CommitsView<'a> {
                 );
 
                 let mut item: Vec<Span> = vec![
-                    Span::from(prefix),
                     Span::styled(
                         format!("{}", &c.hash[..hash_width]),
                         Style::default().fg(Color::Indexed(5)),
@@ -465,7 +429,16 @@ impl<'a> Widget for CommitsView<'a> {
                     item.push(Span::from(c.subject.clone()));
                 }
 
-                ListItem::new(Spans::from(item))
+                let mut item = ListItem::new(Spans::from(item));
+
+                if let Some(m) = self.commits.mark {
+                    if m == i {
+                        item =
+                            item.style(Style::default().bg(Color::Indexed(8)));
+                    }
+                }
+
+                item
             })
             .collect();
 
