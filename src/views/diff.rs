@@ -1,7 +1,4 @@
-use std::{
-    cmp::{max, min},
-    path::{Path, PathBuf},
-};
+use std::{cmp::{max, min}, path::PathBuf};
 
 use list_helper_core::ListInfo;
 use tui::{
@@ -39,11 +36,8 @@ impl Diff {
         }
     }
 
-    /// Return true if the file represented by this diff is in the given list of
-    /// paths
-    pub fn is_in_list(&self, paths: &Vec<PathBuf>) -> bool {
-        let buf = Path::new(&self.stat.path).canonicalize().unwrap();
-        paths.contains(&buf)
+    pub fn path(&self) -> PathBuf {
+        self.stat.path()
     }
 
     /// Re-diff the file; call this when the underlying file may have changed

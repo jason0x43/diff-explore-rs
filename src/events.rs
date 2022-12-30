@@ -1,14 +1,15 @@
 use std::{
     fmt::{self, Display},
-    path::Path,
-    sync::mpsc::{self, Receiver},
+    path::{Path, PathBuf},
+    sync::mpsc::{self, Receiver, Sender},
     thread,
 };
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent};
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
-
-use crate::git::git_root;
+use notify::{
+    event::ModifyKind, recommended_watcher, EventKind, RecommendedWatcher,
+    RecursiveMode, Watcher,
+};
 
 #[derive(Debug)]
 pub enum Key {
@@ -73,64 +74,80 @@ impl From<event::KeyEvent> for Key {
     }
 }
 
-pub enum InputEvent {
+pub enum AppEvent {
     Input(Key),
-    FileChange(notify::Event),
+    FilesChanged(Vec<PathBuf>),
     Resize,
 }
 
 pub struct Events {
-    rx: Receiver<InputEvent>,
-    _watcher: Box<dyn Watcher>,
+    rx: Receiver<AppEvent>,
+    tx: Sender<AppEvent>,
+    watcher: RecommendedWatcher,
 }
 
 impl Events {
     pub fn new() -> Events {
-        let (sender, receiver) = mpsc::channel();
+        let (tx, rx) = mpsc::channel();
 
-        let input_sender = sender.clone();
+        let watch_tx = tx.clone();
+        let watcher = recommended_watcher(
+            move |res: Result<notify::Event, notify::Error>| match res {
+                Ok(event) => {
+                    let evt = event.clone();
+                    match event.kind {
+                        EventKind::Modify(mod_kind) => match mod_kind {
+                            ModifyKind::Data(_) => {
+                                watch_tx
+                                    .send(AppEvent::FilesChanged(evt.paths))
+                                    .unwrap();
+                            }
+                            _ => {}
+                        },
+                        _ => {}
+                    }
+                }
+                _ => {}
+            },
+        )
+        .unwrap();
+
+        Events {
+            rx,
+            tx,
+            watcher,
+        }
+    }
+
+    pub fn start(&mut self) {
+        let input_tx = self.tx.clone();
         thread::spawn(move || loop {
             if let Ok(event) = event::read() {
                 match event {
                     Event::Key(key) => {
                         let key = Key::from(key);
-                        input_sender.send(InputEvent::Input(key)).unwrap();
+                        input_tx.send(AppEvent::Input(key)).unwrap();
                     }
                     Event::Resize(_, _) => {
-                        input_sender.send(InputEvent::Resize).unwrap();
+                        input_tx.send(AppEvent::Resize).unwrap();
                     }
                     _ => {}
                 }
             }
         });
-
-        let watch_sender = sender.clone();
-        let mut watcher: Box<dyn Watcher> = Box::new(
-            RecommendedWatcher::new(
-                move |res: Result<notify::Event, notify::Error>| match res {
-                    Ok(event) => {
-                        watch_sender
-                            .send(InputEvent::FileChange(event))
-                            .unwrap();
-                    }
-                    _ => {}
-                },
-                notify::Config::default(),
-            )
-            .unwrap(),
-        );
-
-        watcher
-            .watch(Path::new(&git_root()), RecursiveMode::Recursive)
-            .unwrap();
-
-        Events {
-            rx: receiver,
-            _watcher: watcher,
-        }
     }
 
-    pub fn next(&self) -> Result<InputEvent, mpsc::RecvError> {
+    pub fn watch_file(&mut self, path: &Path) {
+        self.watcher
+            .watch(path, RecursiveMode::Recursive)
+            .unwrap();
+    }
+
+    pub fn unwatch_file(&mut self, path: &Path) {
+        self.watcher.unwatch(path).unwrap();
+    }
+
+    pub fn next(&self) -> Result<AppEvent, mpsc::RecvError> {
         self.rx.recv()
     }
 }

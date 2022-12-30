@@ -17,7 +17,6 @@ use tui::{
 
 use crate::{
     app::{App, View},
-    events::{Events, InputEvent},
     stack::Stack,
     views::{
         commits::CommitsView,
@@ -28,19 +27,6 @@ use crate::{
     },
     widget::WidgetWithBlock,
 };
-
-/// Draw a widget with a border
-fn draw_framed_widget<'a, W>(
-    f: &mut Frame<CrosstermBackend<Stdout>>,
-    mut w: W,
-    t: &'a str,
-    r: Rect,
-) where
-    W: WidgetWithBlock<'a>,
-{
-    w.block(Block::default().borders(Borders::ALL).title(t));
-    f.render_widget(w, r);
-}
 
 /// Draw the UI
 pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
@@ -94,8 +80,9 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
     };
 
     if app.should_show_console() {
-        let console = ConsoleView::new(&mut app.console);
-        draw_framed_widget(f, console, "Console", parts[1]);
+        let mut console = ConsoleView::new(&mut app.console);
+        console.block(Block::default().borders(Borders::ALL).title("Console"));
+        f.render_widget(console, parts[1]);
     }
 
     let statusline = StatusLineView::new(&app.statusline);
@@ -110,62 +97,35 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
     );
 }
 
-fn setup_term() -> Result<Terminal<CrosstermBackend<Stdout>>, io::Error> {
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    Ok(Terminal::new(backend)?)
+pub struct Ui {
+    term: Terminal<CrosstermBackend<Stdout>>,
 }
 
-fn restore_term(
-    mut term: Terminal<CrosstermBackend<Stdout>>,
-) -> Result<(), io::Error> {
-    disable_raw_mode()?;
-    execute!(
-        term.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    term.show_cursor()?;
-    Ok(())
-}
+impl Ui {
+    pub fn new() -> Ui {
+        enable_raw_mode().unwrap();
+        let mut stdout = io::stdout();
+        execute!(stdout, EnterAlternateScreen, EnableMouseCapture).unwrap();
+        let backend = CrosstermBackend::new(stdout);
+        let term = Terminal::new(backend).unwrap();
 
-/// Setup the terminal and start the render loop
-pub fn start(mut app: App) -> Result<(), io::Error> {
-    let mut term = setup_term()?;
-    let events = Events::new();
-
-    loop {
-        term.draw(|f| draw(f, &mut app))?;
-
-        match events.next().unwrap() {
-            InputEvent::Input(key) => app.do_action(key),
-            InputEvent::Resize => {}
-            InputEvent::FileChange(event) => match app.views.top() {
-                Some(View::Diff(v)) => match event.kind {
-                    notify::event::EventKind::Modify(modify_kind) => {
-                        match modify_kind {
-                            notify::event::ModifyKind::Data(_change) => {
-                                if v.is_in_list(&event.paths) {
-                                    v.refresh();
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                    _ => {}
-                },
-                _ => {}
-            },
-        };
-
-        if app.should_quit() {
-            break;
-        }
+        Ui { term }
     }
 
-    restore_term(term)?;
+    pub fn update(&mut self, app: &mut App) {
+        self.term.draw(|f| draw(f, app)).unwrap();
+    }
+}
 
-    Ok(())
+impl Drop for Ui {
+    fn drop(&mut self) {
+        disable_raw_mode().unwrap();
+        execute!(
+            self.term.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture
+        )
+        .unwrap();
+        self.term.show_cursor().unwrap();
+    }
 }

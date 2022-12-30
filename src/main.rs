@@ -14,7 +14,6 @@ use std::{
     env::{self, set_current_dir},
     io,
 };
-use ui::start;
 
 fn main() -> Result<(), io::Error> {
     // Process command line arg
@@ -24,10 +23,10 @@ fn main() -> Result<(), io::Error> {
     }
 
     // Initialize the app
-    let app = App::new();
+    let mut app = App::new();
 
     // Run the app
-    start(app)?;
+    app.start();
 
     Ok(())
 }

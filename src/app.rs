@@ -2,6 +2,8 @@ use std::collections::LinkedList;
 use std::time::{Duration, Instant};
 
 use crate::console;
+use crate::events::{AppEvent, Events};
+use crate::ui::Ui;
 use crate::{
     events::Key,
     stack::Stack,
@@ -27,6 +29,7 @@ pub struct App {
     pub console: Console,
     pub statusline: StatusLine,
     pub tab_width: u8,
+    events: Events,
     should_quit: bool,
     show_console: bool,
     pending_keys: Vec<Key>,
@@ -51,6 +54,7 @@ impl App {
             pending_keys: vec![],
             pending_key_timeout: 500,
             last_key_time: Instant::now(),
+            events: Events::new(),
         }
     }
 
@@ -121,7 +125,8 @@ impl App {
                     Some(View::Stats(_v)) => {
                         self.views.pop();
                     }
-                    Some(View::Diff(_v)) => {
+                    Some(View::Diff(v)) => {
+                        self.events.unwatch_file(&v.path());
                         self.views.pop();
                     }
                     _ => {}
@@ -216,12 +221,39 @@ impl App {
                         let stat = v.current_stat().clone();
                         let range = v.commit_range().clone();
                         self.views.push(View::Diff(Diff::new(&stat, &range)));
+                        self.events.watch_file(&stat.path());
                     }
                     _ => {}
                 },
                 _ => {
                     console!("Unhandled: {}", key);
                 }
+            }
+        }
+    }
+
+    pub fn start(&mut self) {
+        self.events.start();
+
+        let mut ui = Ui::new();
+
+        loop {
+            ui.update(self);
+
+            match self.events.next().unwrap() {
+                AppEvent::Input(key) => {
+                    self.do_action(key);
+                }
+                AppEvent::Resize => {}
+                AppEvent::FilesChanged(_) => {
+                    if let Some(View::Diff(v)) = self.views.top() {
+                        v.refresh();
+                    }
+                }
+            };
+
+            if self.should_quit() {
+                break;
             }
         }
     }

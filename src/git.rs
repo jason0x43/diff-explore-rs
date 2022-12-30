@@ -1,6 +1,7 @@
 use core::fmt;
 use std::{
     fmt::Display,
+    path::{Path, PathBuf},
     process::{Command, Output},
 };
 
@@ -147,6 +148,10 @@ impl Stat {
             path,
             old_path,
         }
+    }
+
+    pub fn path(&self) -> PathBuf {
+        Path::new(&self.path).canonicalize().unwrap()
     }
 }
 
