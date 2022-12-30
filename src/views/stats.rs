@@ -1,24 +1,26 @@
-use list_helper_core::{ListCursor, ListData, ListInfo};
-use list_helper_macro::ListCursor;
 use tui::{
     buffer::Buffer,
     layout::Rect,
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Span, Spans},
     widgets::{Block, List, ListItem, ListState, StatefulWidget, Widget},
 };
 
 use crate::{
     git::{git_diff_stat, CommitRange, Stat},
+    list::{ListCursor, ListData, ListInfo, ListScroll},
+    search::Search,
+    ui::highlight_spans,
     views::statusline::Status,
     widget::WidgetWithBlock,
 };
 
-#[derive(Debug, Clone, ListCursor)]
+#[derive(Debug, Clone)]
 pub struct Stats {
     list: ListData,
     range: CommitRange,
     stats: Vec<Stat>,
+    search: Option<String>,
 }
 
 impl Stats {
@@ -27,6 +29,7 @@ impl Stats {
             list: ListData::new(),
             stats: git_diff_stat(&range),
             range,
+            search: None,
         }
     }
 
@@ -48,11 +51,57 @@ impl ListInfo for Stats {
     fn list_pos(&self) -> usize {
         self.cursor()
     }
+
+    fn set_list_pos(&mut self, pos: usize) {
+        self.cursor_to(pos);
+    }
+}
+
+impl ListScroll for Stats {
+    fn height(&self) -> usize {
+        self.list.height
+    }
+
+    fn scroll_to(&mut self, line: usize) {
+        self.cursor_to(line);
+    }
+}
+
+impl ListCursor for Stats {
+    fn list_state(&self) -> &ListState {
+        &self.list.state
+    }
+
+    fn list_state_mut(&mut self) -> &mut ListState {
+        &mut self.list.state
+    }
 }
 
 impl Status for Stats {
     fn status(&self) -> String {
         format!("{}", self.range)
+    }
+}
+
+impl Search for Stats {
+    fn set_search(&mut self, search: Option<String>) {
+        self.search = search;
+    }
+
+    fn get_search(&self) -> Option<String> {
+        self.search.clone()
+    }
+
+    fn is_match(&self, idx: usize) -> bool {
+        match &self.search {
+            Some(search) => {
+                let stat = &self.stats[idx];
+                stat.path.contains(search)
+                    || stat.adds.to_string().contains(search)
+                    || stat.deletes.to_string().contains(search)
+            }
+            _ => false,
+        }
     }
 }
 
@@ -76,9 +125,7 @@ impl<'a> WidgetWithBlock<'a> for StatsView<'a> {
 
 impl<'a> Widget for StatsView<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let height = area.height as usize;
-
-        self.stats.set_list_height(height);
+        self.stats.list.height = area.height as usize;
 
         let adds_width = self
             .stats
@@ -100,7 +147,7 @@ impl<'a> Widget for StatsView<'a> {
             .stats
             .iter()
             .map(|c| {
-                let row = ListItem::new(Spans::from(vec![
+                let mut spans = vec![
                     Span::styled(
                         format!(
                             "{:>width$}",
@@ -121,7 +168,17 @@ impl<'a> Widget for StatsView<'a> {
                     Span::from(" "),
                     Span::from(c.path.clone()),
                     Span::from(" "),
-                ]));
+                ];
+
+                if let Some(search) = &self.stats.search {
+                    spans = highlight_spans(
+                        spans.clone(),
+                        search,
+                        Style::default().add_modifier(Modifier::REVERSED),
+                    )
+                }
+
+                let row = ListItem::new(Spans::from(spans));
 
                 row
             })
@@ -134,6 +191,6 @@ impl<'a> Widget for StatsView<'a> {
             list = list.block(b);
         }
 
-        StatefulWidget::render(list, area, buf, self.stats.list_state());
+        StatefulWidget::render(list, area, buf, self.stats.list_state_mut());
     }
 }

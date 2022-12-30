@@ -1,17 +1,18 @@
-use std::{cmp::{max, min}, path::PathBuf};
+use std::{cmp::max, path::PathBuf};
 
-use list_helper_core::ListInfo;
 use tui::{
     buffer::Buffer,
     layout::Rect,
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Span, Spans},
     widgets::{Paragraph, Widget},
 };
 
 use crate::{
     git::{git_diff_file, CommitRange, DiffFile, DiffLine, Stat},
-    views::statusline::Status,
+    list::{ListInfo, ListScroll},
+    search::Search,
+    views::statusline::Status, ui::highlight_spans,
 };
 
 #[derive(Debug, Clone)]
@@ -21,6 +22,7 @@ pub struct Diff {
     diff: DiffFile,
     range: CommitRange,
     stat: Stat,
+    search: Option<String>,
 }
 
 impl Diff {
@@ -33,6 +35,7 @@ impl Diff {
             offset: 0,
             stat: stat.clone(),
             range: range.clone(),
+            search: None,
         }
     }
 
@@ -49,40 +52,6 @@ impl Diff {
             None,
         );
     }
-
-    pub fn scroll_up(&mut self) {
-        let delta = min(1, self.offset);
-        self.offset -= delta;
-    }
-
-    pub fn page_up(&mut self) {
-        let delta = min(self.height - 1, self.offset);
-        self.offset -= delta;
-    }
-
-    pub fn scroll_down(&mut self) {
-        if self.diff.lines.len() - self.offset > self.height {
-            let limit = self.diff.lines.len() - self.offset - self.height;
-            let delta = min(limit, 1);
-            self.offset += delta;
-        }
-    }
-
-    pub fn page_down(&mut self) {
-        if self.diff.lines.len() - self.offset > self.height {
-            let limit = self.diff.lines.len() - self.offset - self.height;
-            let delta = min(limit, self.height - 1);
-            self.offset += delta;
-        }
-    }
-
-    pub fn scroll_to_bottom(&mut self) {
-        self.offset = self.diff.lines.len() - self.height;
-    }
-
-    pub fn scroll_to_top(&mut self) {
-        self.offset = 0;
-    }
 }
 
 impl ListInfo for Diff {
@@ -91,13 +60,40 @@ impl ListInfo for Diff {
     }
 
     fn list_pos(&self) -> usize {
-        min(self.offset + self.height, self.diff.lines.len())
+        self.offset
+    }
+
+    fn set_list_pos(&mut self, pos: usize) {
+        self.offset = pos;
+    }
+}
+
+impl ListScroll for Diff {
+    fn height(&self) -> usize {
+        self.height
     }
 }
 
 impl Status for Diff {
     fn status(&self) -> String {
         format!("{}: {}", self.range, self.stat.path)
+    }
+}
+
+impl Search for Diff {
+    fn set_search(&mut self, search: Option<String>) {
+        self.search = search;
+    }
+
+    fn get_search(&self) -> Option<String> {
+        self.search.clone()
+    }
+
+    fn is_match(&self, idx: usize) -> bool {
+        match &self.search {
+            Some(search) => self.diff.lines[idx].contains(search),
+            _ => false,
+        }
     }
 }
 
@@ -126,13 +122,19 @@ impl<'a> DiffView<'a> {
 struct LineRenderer {
     line_nr_width: usize,
     tab_width: usize,
+    search: Option<String>,
 }
 
 impl LineRenderer {
-    fn new(line_nr_width: usize, tab_width: usize) -> LineRenderer {
+    fn new(
+        line_nr_width: usize,
+        tab_width: usize,
+        search: Option<String>,
+    ) -> LineRenderer {
         LineRenderer {
             line_nr_width,
             tab_width,
+            search,
         }
     }
 
@@ -145,7 +147,7 @@ impl LineRenderer {
         new: u32,
         line: &str,
     ) -> Vec<Span> {
-        [
+        let mut spans: Vec<Span> = vec![
             Span::styled(
                 format!("{:>width$}", old, width = self.line_nr_width),
                 Style::default().fg(Color::Indexed(old_color)),
@@ -156,14 +158,33 @@ impl LineRenderer {
                 Style::default().fg(Color::Indexed(new_color)),
             ),
             Span::from(" "),
-            Span::styled(
-                String::from(
-                    &line[1..].replace('\t', &" ".repeat(self.tab_width)),
-                ),
-                Style::default().fg(Color::Indexed(line_color)),
-            ),
-        ]
-        .into()
+        ];
+
+        let search = if self.search.is_some()
+            && self.search.clone().unwrap().len() > 0
+        {
+            self.search.clone()
+        } else {
+            None
+        };
+
+        let line =
+            String::from(&line[1..].replace('\t', &" ".repeat(self.tab_width)));
+
+        spans.push(Span::styled(
+            line,
+            Style::default().fg(Color::Indexed(line_color)),
+        ));
+
+        if let Some(search) = search {
+            spans = highlight_spans(
+                spans,
+                &search,
+                Style::default().add_modifier(Modifier::REVERSED),
+            );
+        }
+
+        spans
     }
 }
 
@@ -180,8 +201,9 @@ impl<'a> Widget for DiffView<'a> {
             }
             _ => 0,
         } as usize;
+        let search = diff.search.clone();
         let renderer =
-            LineRenderer::new(line_nr_width, self.tab_width as usize);
+            LineRenderer::new(line_nr_width, self.tab_width as usize, search);
 
         let lines: Vec<Spans> =
             diff.diff

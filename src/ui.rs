@@ -6,17 +6,20 @@ use crossterm::{
         LeaveAlternateScreen,
     },
 };
-use list_helper_core::ListInfo;
 use std::io::{self, Stdout};
 use tui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
+    style::Style,
+    text::Span,
     widgets::{Block, Borders},
     Frame, Terminal,
 };
 
 use crate::{
     app::{App, View},
+    list::ListInfo,
+    search::Search,
     stack::Stack,
     views::{
         commits::CommitsView,
@@ -29,7 +32,7 @@ use crate::{
 };
 
 /// Draw the UI
-pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
+fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
     let constraints = if app.should_show_console() {
         [
             Constraint::Percentage(50),
@@ -51,23 +54,37 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
         });
 
     let content_rect = parts[0];
+    let search = app.entering_search();
 
     match app.views.top() {
         Some(View::Commits(v)) => {
-            app.statusline.set_status(v.status());
+            if let Some(s) = search {
+                app.statusline.set_status(search_status(s));
+            } else {
+                app.statusline.set_status(v.status());
+            }
             app.statusline.set_location(v.list_pos(), v.list_count());
-            let w = CommitsView::new(v);
-            f.render_widget(w, content_rect);
+            v.set_search(app.search.clone());
+            f.render_widget(CommitsView::new(v), content_rect);
         }
         Some(View::Stats(v)) => {
-            app.statusline.set_status(v.status());
+            if let Some(s) = search {
+                app.statusline.set_status(search_status(s));
+            } else {
+                app.statusline.set_status(v.status());
+            }
             app.statusline.set_location(v.list_pos(), v.list_count());
-            let w = StatsView::new(v);
-            f.render_widget(w, content_rect);
+            v.set_search(app.search.clone());
+            f.render_widget(StatsView::new(v), content_rect);
         }
         Some(View::Diff(v)) => {
-            app.statusline.set_status(v.status());
+            if let Some(s) = search {
+                app.statusline.set_status(search_status(s));
+            } else {
+                app.statusline.set_status(v.status());
+            }
             app.statusline.set_location(v.list_pos(), v.list_count());
+            v.set_search(app.search.clone());
             let w = DiffView::new(
                 v,
                 Some(DiffViewOpts {
@@ -97,6 +114,61 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
     );
 }
 
+pub fn highlight_spans<'a>(
+    spans: Vec<Span<'a>>,
+    hl_text: &String,
+    hl_style: Style,
+) -> Vec<Span<'a>> {
+    let mut new_spans: Vec<Span> = vec![];
+    let text = spans
+        .iter()
+        .map(|s| s.content.as_ref())
+        .collect::<Vec<&str>>()
+        .join("");
+
+    if text.contains(hl_text) {
+        let mut styles: Vec<&Style> = vec![];
+        for span in spans.iter() {
+            for _ in 0..span.content.len() {
+                styles.push(&span.style);
+            }
+        }
+
+        let parts = text.split(&hl_text.clone()).collect::<Vec<&str>>();
+        let mut offset = 0;
+        for i in 0..parts.len() - 1 {
+            offset += parts[i].len();
+            for x in offset..offset + hl_text.len() {
+                styles[x] = &hl_style;
+            }
+            offset += hl_text.len();
+        }
+
+        let mut start = 0;
+        let mut style = styles[0];
+        for i in 0..text.len() {
+            if styles[i] != style {
+                new_spans
+                    .push(Span::styled(String::from(&text[start..i]), *style));
+                start = i;
+                style = styles[i];
+            }
+        }
+        new_spans.push(Span::styled(
+            String::from(&text[start..text.len()]),
+            *styles[text.len() - 1],
+        ));
+
+        new_spans
+    } else {
+        spans.clone()
+    }
+}
+
+fn search_status(query: String) -> String {
+    format!("/{}", query)
+}
+
 pub struct Ui {
     term: Terminal<CrosstermBackend<Stdout>>,
 }
@@ -115,10 +187,8 @@ impl Ui {
     pub fn update(&mut self, app: &mut App) {
         self.term.draw(|f| draw(f, app)).unwrap();
     }
-}
 
-impl Drop for Ui {
-    fn drop(&mut self) {
+    pub fn stop(&mut self) {
         disable_raw_mode().unwrap();
         execute!(
             self.term.backend_mut(),

@@ -3,6 +3,8 @@ use std::time::{Duration, Instant};
 
 use crate::console;
 use crate::events::{AppEvent, Events};
+use crate::list::{ListCursor, ListScroll};
+use crate::search::Search;
 use crate::ui::Ui;
 use crate::{
     events::Key,
@@ -16,8 +18,6 @@ use crate::{
     },
 };
 
-use list_helper_core::ListCursor;
-
 pub enum View {
     Commits(Commits),
     Stats(Stats),
@@ -29,6 +29,8 @@ pub struct App {
     pub console: Console,
     pub statusline: StatusLine,
     pub tab_width: u8,
+    pub search: Option<String>,
+    typing_search: bool,
     events: Events,
     should_quit: bool,
     show_console: bool,
@@ -55,6 +57,8 @@ impl App {
             pending_key_timeout: 500,
             last_key_time: Instant::now(),
             events: Events::new(),
+            search: None,
+            typing_search: false,
         }
     }
 
@@ -74,6 +78,14 @@ impl App {
         self.show_console
     }
 
+    pub fn entering_search(&self) -> Option<String> {
+        if self.typing_search {
+            self.search.clone()
+        } else {
+            None
+        }
+    }
+
     pub fn do_action(&mut self, key: Key) {
         let now = std::time::Instant::now();
         if now - self.last_key_time
@@ -84,7 +96,59 @@ impl App {
 
         self.last_key_time = now;
 
-        if self.pending_keys.len() > 0 {
+        if let Key::Ctrl('c') = key {
+            self.quit();
+            return;
+        }
+
+        if self.typing_search {
+            match key {
+                Key::Enter => {
+                    self.typing_search = false;
+                }
+                Key::Char(c) => {
+                    let q = self.search.clone().unwrap_or(String::from(""));
+                    self.search = Some(format!("{}{}", q, c));
+                }
+                Key::Backspace => {
+                    if let Some(q) = &mut self.search {
+                        if q.len() > 0 {
+                            q.truncate(q.len() - 1);
+                            self.search = Some(q.clone());
+                        }
+                    }
+                }
+                Key::Escape => {
+                    self.search = None;
+                    self.typing_search = false;
+                }
+                Key::Ctrl('n') => match self.views.top() {
+                    Some(View::Commits(v)) => {
+                        v.search_next();
+                    }
+                    Some(View::Stats(v)) => {
+                        v.search_next();
+                    }
+                    Some(View::Diff(v)) => {
+                        v.search_next();
+                    }
+                    _ => {}
+                },
+                Key::Ctrl('p') => match self.views.top() {
+                    Some(View::Commits(v)) => {
+                        v.search_prev();
+                    }
+                    Some(View::Stats(v)) => {
+                        v.search_prev();
+                    }
+                    Some(View::Diff(v)) => {
+                        v.search_prev();
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
+        } else if self.pending_keys.len() > 0 {
             let last_key = self.pending_keys.last().unwrap();
             match key {
                 Key::Char('G') => match last_key {
@@ -94,7 +158,7 @@ impl App {
                             self.pending_keys.clear();
                         }
                         Some(View::Diff(v)) => {
-                            v.scroll_to_top();
+                            v.scroll_top();
                             self.pending_keys.clear();
                         }
                         Some(View::Stats(v)) => {
@@ -115,6 +179,9 @@ impl App {
             }
         } else {
             match key {
+                Key::Escape => {
+                    self.search = None;
+                }
                 Key::Char('1') => {
                     self.pending_keys.push(key);
                 }
@@ -131,20 +198,56 @@ impl App {
                     }
                     _ => {}
                 },
+                Key::Char('/') => {
+                    self.search = Some(String::from(""));
+                    self.typing_search = true;
+                }
                 Key::Char('G') => match self.views.top() {
                     Some(View::Commits(v)) => {
                         v.cursor_to_bottom();
                     }
                     Some(View::Diff(v)) => {
-                        v.scroll_to_bottom();
+                        v.scroll_bottom();
                     }
                     Some(View::Stats(v)) => {
                         v.cursor_to_bottom();
                     }
                     _ => {}
                 },
+                Key::Char('n') => {
+                    if self.search.is_some() {
+                        match self.views.top() {
+                            Some(View::Commits(v)) => {
+                                v.search_next();
+                            }
+                            Some(View::Diff(v)) => {
+                                v.search_next();
+                            }
+                            Some(View::Stats(v)) => {
+                                v.search_next();
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                Key::Char('N') => {
+                    if self.search.is_some() {
+                        match self.views.top() {
+                            Some(View::Commits(v)) => {
+                                v.search_prev();
+                            }
+                            Some(View::Diff(v)) => {
+                                v.search_prev();
+                            }
+                            Some(View::Stats(v)) => {
+                                v.search_next();
+                            }
+                            _ => {}
+                        }
+                    }
+                }
                 Key::Char('>') => self.toggle_console(),
-                Key::Space => match self.views.top() {
+                Key::Char(' ') => match self.views.top() {
                     Some(View::Commits(v)) => {
                         v.cursor_mark();
                     }
@@ -256,5 +359,7 @@ impl App {
                 break;
             }
         }
+
+        ui.stop();
     }
 }

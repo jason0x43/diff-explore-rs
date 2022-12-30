@@ -181,8 +181,6 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "crossterm",
- "list_helper_core",
- "list_helper_macro",
  "notify",
  "once_cell",
  "regex",
@@ -296,22 +294,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ecd207c9c713c34f95a097a5b029ac2ce6010530c7b49d7fea24d977dede04f5"
 dependencies = [
  "cc",
-]
-
-[[package]]
-name = "list_helper_core"
-version = "0.1.0"
-dependencies = [
- "tui",
-]
-
-[[package]]
-name = "list_helper_macro"
-version = "0.1.0"
-dependencies = [
- "list_helper_core",
- "quote",
- "syn",
 ]
 
 [[package]]

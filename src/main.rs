@@ -2,6 +2,8 @@ mod app;
 mod events;
 mod git;
 mod graph;
+mod list;
+mod search;
 mod stack;
 mod string;
 mod time;
