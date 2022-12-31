@@ -195,10 +195,24 @@ impl CommitGraph {
                         // in the track list
                         for y in x + 1..tracks.len() {
                             if tracks[y].parent == Some(c.hash.clone()) {
-                                tracks[y].related =
-                                    tracks[y].parent.clone().unwrap();
+                                tracks[y].related = c.hash.clone();
                                 tracks[y].parent = None;
-                                tracks[y].track = Track::Branch;
+
+                                if tracks[y].track == Track::ContinueRight {
+                                    // this is a continuation cell added during
+                                    // dead track removal -- find the end of the
+                                    // continuation run and replace that with a
+                                    // Branch
+                                    if let Some(t) =
+                                        tracks.iter().skip(y + 1).position(
+                                            |t| t.track == Track::ContinueUp,
+                                        )
+                                    {
+                                        tracks[y + 1 + t].track = Track::Branch;
+                                    }
+                                } else {
+                                    tracks[y].track = Track::Branch;
+                                }
                             }
                         }
                     } else {

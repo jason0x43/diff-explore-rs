@@ -315,9 +315,18 @@ fn draw_graph<'a>(
             }
 
             Track::ContinueRight => {
-                if node.tracks[i - 1].track == Track::ContinueRight {
+                if node.tracks[i - 1].track == Track::ContinueRight
+                    || node
+                        .tracks
+                        .iter()
+                        .skip(i)
+                        .find(|t| {
+                            t.parent == track.parent && t.track == Track::Branch
+                        })
+                        .is_some()
+                {
                     // this is an intermediate ContinueRight
-                    let hash = &node.tracks[i - 1].related;
+                    let hash = &track.related;
                     graph.push(draw_cell(&hash, HLINE_CHAR, colors));
                     graph.push(draw_cell(&hash, HLINE_CHAR, colors));
                 } else {
