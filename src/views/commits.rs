@@ -321,8 +321,12 @@ fn draw_graph<'a>(
                     graph.push(draw_cell(&hash, HLINE_CHAR, colors));
                     graph.push(draw_cell(&hash, HLINE_CHAR, colors));
                 } else {
+                    if let Some(h) = draw_hline {
+                        graph.push(draw_cell(&h, HLINE_CHAR, colors));
+                    } else {
+                        graph.push(Span::from(SPACE_CHAR));
+                    }
                     // this is the initial ContinueRight
-                    graph.push(Span::from(SPACE_CHAR));
                     graph.push(draw_cell(
                         &track.related,
                         UP_RIGHT_CHAR,
@@ -332,7 +336,15 @@ fn draw_graph<'a>(
             }
 
             Track::ContinueUp => {
-                graph.push(draw_cell(&track.related, HLINE_CHAR, colors));
+                if node.tracks[i - 1].track == Track::Node {
+                    graph.push(draw_cell(
+                        &track.related,
+                        HALF_HLINE_CHAR,
+                        colors,
+                    ));
+                } else {
+                    graph.push(draw_cell(&track.related, HLINE_CHAR, colors));
+                }
                 graph.push(draw_cell(&track.related, RIGHT_UP_CHAR, colors));
             }
 
@@ -342,6 +354,7 @@ fn draw_graph<'a>(
                     Track::Merge
                         | Track::Branch
                         | Track::Continue
+                        | Track::ContinueUp
                         | Track::Node
                 ) {
                     graph.push(Span::from(SPACE_CHAR));
@@ -391,16 +404,23 @@ fn draw_graph<'a>(
                 // There may be several Merges or Braches in a row, in
                 // which case the intermediate ones should be Ts, and the
                 // last one should be a corner
-                if node.tracks.len() > i + 1
-                    && node.tracks[i + 1].track == node.tracks[i].track
+                if node
+                    .tracks
+                    .iter()
+                    .skip(i + 1)
+                    .position(|p| {
+                        p.track == node.tracks[i].track
+                            && p.related == node.tracks[i].related
+                    })
+                    .is_some()
                 {
                     graph.push(draw_cell(&track.related, tee_char, colors));
                 } else {
                     graph.push(draw_cell(&track.related, corner_char, colors));
-                }
 
-                // a merge ends an hline
-                draw_hline = None;
+                    // the corner of a merge ends an hline
+                    draw_hline = None;
+                }
             }
         }
     }
