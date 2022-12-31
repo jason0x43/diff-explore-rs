@@ -133,8 +133,7 @@ impl CommitGraph {
                                 });
                             } else if let Some(x) =
                                 prev_tracks.iter().skip(pi).position(|p| {
-                                    p.parent.is_some()
-                                        && p.parent == *parent
+                                    p.parent.is_some() && p.parent == *parent
                                 })
                             {
                                 // this track's parent is in a later track (x)
@@ -154,7 +153,7 @@ impl CommitGraph {
 
                                 // push some connector cells to get to the
                                 // target track
-                                for _ in i + 1..x {
+                                for _ in pi + 1..x {
                                     tracks.push(CommitCell::new(
                                         None,
                                         parent.clone().unwrap(),
