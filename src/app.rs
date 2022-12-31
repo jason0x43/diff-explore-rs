@@ -105,6 +105,18 @@ impl App {
             match key {
                 Key::Enter => {
                     self.typing_search = false;
+                    match self.views.top() {
+                        Some(View::Commits(v)) => {
+                            v.search_next();
+                        }
+                        Some(View::Stats(v)) => {
+                            v.search_next();
+                        }
+                        Some(View::Diff(v)) => {
+                            v.search_next();
+                        }
+                        _ => {}
+                    }
                 }
                 Key::Char(c) => {
                     let q = self.search.clone().unwrap_or(String::from(""));
