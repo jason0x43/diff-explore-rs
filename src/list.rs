@@ -46,10 +46,11 @@ pub trait ListScroll: ListInfo {
 
     /// Scroll one line down
     fn scroll_down(&mut self) {
+        let count = self.list_count();
         let offset = self.list_pos();
         let height = self.height();
-        if self.list_count() - offset > height {
-            let limit = self.list_count() - offset - height;
+        if count - offset > height {
+            let limit = count - offset - height;
             let delta = min(limit, 1);
             self.set_list_pos(offset + delta);
         }

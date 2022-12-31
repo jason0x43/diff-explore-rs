@@ -327,12 +327,12 @@ impl App {
                     }
                     _ => {}
                 },
-                Key::Ctrl('n') => {
+                Key::Char('J') => {
                     if self.show_console {
                         self.console.scroll_down();
                     }
                 }
-                Key::Ctrl('p') => {
+                Key::Char('K') => {
                     if self.show_console {
                         self.console.scroll_up();
                     }

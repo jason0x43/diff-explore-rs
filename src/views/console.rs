@@ -1,5 +1,5 @@
+use std::sync::Mutex;
 use std::time::SystemTime;
-use std::{cmp::min, sync::Mutex};
 
 use once_cell::sync::Lazy;
 use tui::{
@@ -8,6 +8,7 @@ use tui::{
     widgets::{Block, Paragraph, Widget},
 };
 
+use crate::list::{ListInfo, ListScroll};
 use crate::widget::WidgetWithBlock;
 
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
@@ -23,10 +24,6 @@ impl Message {
             content: String::from(content),
         }
     }
-
-    pub fn content(&self) -> String {
-        self.content.clone()
-    }
 }
 
 pub struct Console {
@@ -41,19 +38,25 @@ impl Console {
             height: 0,
         }
     }
+}
 
-    pub fn scroll_up(&mut self) {
-        let delta = min(1, self.offset);
-        self.offset -= delta;
+impl ListInfo for Console {
+    fn list_count(&self) -> usize {
+        get_num_lines()
     }
 
-    pub fn scroll_down(&mut self) {
-        let count = get_message_count();
-        if count - self.offset > self.height {
-            let limit = count - self.offset - self.height;
-            let delta = min(limit, 1);
-            self.offset += delta;
-        }
+    fn list_pos(&self) -> usize {
+        self.offset
+    }
+
+    fn set_list_pos(&mut self, pos: usize) {
+        self.offset = pos;
+    }
+}
+
+impl ListScroll for Console {
+    fn height(&self) -> usize {
+        self.height
     }
 }
 
@@ -82,19 +85,18 @@ impl<'a> Widget for ConsoleView<'a> {
         let messages = get_messages();
         self.console.height = area.height as usize;
 
-        let start = self.console.offset;
-        let end = if start + self.console.height < messages.len() {
-            start + self.console.height
-        } else {
-            messages.len()
-        };
-        let lines: Vec<String> =
-            messages[start..end].iter().map(|a| a.content()).collect();
-
-        let mut console = Paragraph::new(lines.join("\n"));
+        let mut console = Paragraph::new(
+            messages
+                .iter()
+                .map(|m| m.content.clone())
+                .collect::<Vec<String>>()
+                .join("\n"),
+        )
+        .scroll((self.console.offset as u16, 0));
 
         if let Some(b) = self.block {
             console = console.block(b);
+            self.console.height -= 2;
         }
 
         Widget::render(console, area, buf);
@@ -103,17 +105,21 @@ impl<'a> Widget for ConsoleView<'a> {
 
 static MESSAGES: Lazy<Mutex<Vec<Message>>> =
     Lazy::new(|| Mutex::new(Vec::new()));
+static NUM_MESSAGE_LINES: Lazy<Mutex<usize>> =
+    Lazy::new(|| Mutex::new(0));
 
 pub fn console_log(message: &str) {
-    MESSAGES.lock().unwrap().push(Message::new(message))
+    MESSAGES.lock().unwrap().push(Message::new(message));
+    let mut count = NUM_MESSAGE_LINES.lock().unwrap();
+    *count += message.lines().count();
 }
 
 fn get_messages() -> Vec<Message> {
     MESSAGES.lock().unwrap().to_vec()
 }
 
-fn get_message_count() -> usize {
-    MESSAGES.lock().unwrap().len()
+fn get_num_lines() -> usize {
+    NUM_MESSAGE_LINES.lock().unwrap().clone()
 }
 
 #[macro_export]
