@@ -51,7 +51,8 @@ impl From<event::KeyEvent> for Key {
                 code: KeyCode::Esc, ..
             } => Key::Escape,
             KeyEvent {
-                code: KeyCode::Backspace, ..
+                code: KeyCode::Backspace,
+                ..
             } => Key::Backspace,
             KeyEvent {
                 code: KeyCode::Enter,
@@ -111,11 +112,7 @@ impl Events {
         )
         .unwrap();
 
-        Events {
-            rx,
-            tx,
-            watcher,
-        }
+        Events { rx, tx, watcher }
     }
 
     pub fn start(&mut self) {
@@ -136,14 +133,12 @@ impl Events {
         });
     }
 
-    pub fn watch_file(&mut self, path: &Path) {
-        self.watcher
-            .watch(path, RecursiveMode::Recursive)
-            .unwrap();
+    pub fn watch_file(&mut self, path: &Path) -> notify::Result<()> {
+        self.watcher.watch(path, RecursiveMode::Recursive)
     }
 
-    pub fn unwatch_file(&mut self, path: &Path) {
-        self.watcher.unwatch(path).unwrap();
+    pub fn unwatch_file(&mut self, path: &Path) -> notify::Result<()> {
+        self.watcher.unwatch(path)
     }
 
     pub fn next(&self) -> Result<AppEvent, mpsc::RecvError> {

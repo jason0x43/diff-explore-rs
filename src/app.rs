@@ -1,9 +1,9 @@
 use std::collections::LinkedList;
 use std::time::{Duration, Instant};
 
-use crate::console;
 use crate::events::{AppEvent, Events};
 use crate::list::{ListCursor, ListScroll};
+use crate::log;
 use crate::search::Search;
 use crate::ui::Ui;
 use crate::{
@@ -193,7 +193,18 @@ impl App {
                         self.views.pop();
                     }
                     Some(View::Diff(v)) => {
-                        self.events.unwatch_file(&v.path());
+                        if let Ok(p) = v.path() {
+                            match self.events.unwatch_file(&p) {
+                                Err(e) => {
+                                    log!(
+                                        "Error unwatching {:?}: {}",
+                                        v.path(),
+                                        e
+                                    )
+                                }
+                                _ => {}
+                            }
+                        }
                         self.views.pop();
                     }
                     _ => {}
@@ -324,12 +335,23 @@ impl App {
                         let stat = v.current_stat().clone();
                         let range = v.commit_range().clone();
                         self.views.push(View::Diff(Diff::new(&stat, &range)));
-                        self.events.watch_file(&stat.path());
+                        if let Ok(p) = stat.path() {
+                            match self.events.watch_file(&p) {
+                                Err(e) => {
+                                    log!(
+                                        "Error watching {:?}: {}",
+                                        stat.path(),
+                                        e
+                                    )
+                                }
+                                _ => {}
+                            }
+                        }
                     }
                     _ => {}
                 },
                 _ => {
-                    console!("Unhandled: {}", key);
+                    log!("Unhandled: {}", key);
                 }
             }
         }

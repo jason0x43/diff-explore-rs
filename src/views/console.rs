@@ -117,7 +117,7 @@ fn get_message_count() -> usize {
 }
 
 #[macro_export]
-macro_rules! console {
+macro_rules! log {
     ($($t:tt)*) => {{
         $crate::views::console::console_log(&format!($($t)*));
     }};

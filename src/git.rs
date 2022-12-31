@@ -150,8 +150,8 @@ impl Stat {
         }
     }
 
-    pub fn path(&self) -> PathBuf {
-        Path::new(&self.path).canonicalize().unwrap()
+    pub fn path(&self) -> Result<PathBuf, std::io::Error> {
+        Path::new(&self.path).canonicalize()
     }
 }
 

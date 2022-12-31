@@ -12,7 +12,8 @@ use crate::{
     git::{git_diff_file, CommitRange, DiffFile, DiffLine, Stat},
     list::{ListInfo, ListScroll},
     search::Search,
-    views::statusline::Status, ui::highlight_spans,
+    ui::highlight_spans,
+    views::statusline::Status,
 };
 
 #[derive(Debug, Clone)]
@@ -39,7 +40,7 @@ impl Diff {
         }
     }
 
-    pub fn path(&self) -> PathBuf {
+    pub fn path(&self) -> Result<PathBuf, std::io::Error> {
         self.stat.path()
     }
 
