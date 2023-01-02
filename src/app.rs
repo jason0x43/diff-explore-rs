@@ -197,6 +197,12 @@ impl App {
                 Key::Char('1') => {
                     self.pending_keys.push(key);
                 }
+                Key::Char('l') => match self.views.top() {
+                    Some(View::Commits(v)) => {
+                        v.toggle_show_details();
+                    }
+                    _ => {}
+                }
                 Key::Char('q') => match self.views.top() {
                     Some(View::Commits(_v)) => {
                         self.quit();

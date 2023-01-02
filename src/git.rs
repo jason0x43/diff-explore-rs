@@ -2,7 +2,8 @@ use core::fmt;
 use std::{
     fmt::Display,
     path::{Path, PathBuf},
-    process::{Command, Output},
+    process::Command,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use chrono::NaiveDateTime;
@@ -59,7 +60,11 @@ impl CommitRange {
     pub fn to_string(&self) -> String {
         match &self.end {
             Some(e) => {
-                format!("{}..{}", self.start, e)
+                if e == &"0".repeat(e.len()) {
+                    self.start.clone()
+                } else {
+                    format!("{}..{}", self.start, e)
+                }
             }
             _ => self.start.clone(),
         }
@@ -68,12 +73,7 @@ impl CommitRange {
 
 impl Display for CommitRange {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let start = &self.start;
-        let end = match &self.end {
-            Some(e) => &e,
-            _ => "<index>",
-        };
-        write!(f, "{}..{}", start, end)
+        write!(f, "{}", self.to_string())
     }
 }
 
@@ -155,59 +155,96 @@ impl Stat {
     }
 }
 
-/// Return the absolute root directory of the current repo
-pub fn git_root() -> String {
-    let output = Command::new("git")
-        .arg("rev-parse")
-        .arg("--show-toplevel")
-        .output()
-        .expect("output of rev-parse should be string");
+fn run(cmd: &mut Command) -> String {
+    crate::log!("running {:?}", cmd);
+    let output = cmd.output().expect("output of rev-parse should be string");
     let out_str = String::from_utf8(output.stdout)
         .expect("output should be a UTF8 string");
-    out_str.trim_end_matches("\n").trim_end_matches(",").into()
+    out_str.trim().into()
+}
+
+/// Return the absolute root directory of the current repo
+pub fn git_root() -> String {
+    run(Command::new("git").arg("rev-parse").arg("--show-toplevel"))
+}
+
+/// Return the commit hash of the current branch head
+pub fn git_id() -> String {
+    run(Command::new("git").arg("rev-parse").arg("HEAD"))
 }
 
 /// Return a git commit log for the current repo
 pub fn git_log() -> Vec<Commit> {
-    let output = Command::new("git")
+    let output = run(Command::new("git")
         .arg("log")
         .arg("--all")
         .arg("--date=iso8601-strict")
         .arg("--decorate")
         // commit|decoration|author_name|author_email|timestamp|subject
-        .arg("--pretty=format:%h|%p|%d|%aN|%aE|%at|%s")
-        .output()
-        .expect("unable to read git log");
-    let out_str =
-        String::from_utf8(output.stdout).expect("invalid output string");
-    out_str
-        .split("\n")
+        .arg("--pretty=format:%h|%p|%d|%aN|%aE|%at|%s"));
+    let mut log = output
+        .lines()
         .map(|line| Commit::from_log_line(line))
-        .collect()
+        .collect::<Vec<Commit>>();
+
+    let hash_len = if let Some(c) = log.get(0) {
+        c.hash.len()
+    } else {
+        6
+    };
+    let head = &git_id()[..hash_len];
+
+    log.insert(
+        0,
+        Commit::from_log_line(
+            format!(
+                "{}|{}|{}|{}|{}|{}|{}",
+                "0".repeat(hash_len),
+                head,
+                "",
+                "Unknown",
+                "",
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+                "Unstaged changes"
+            )
+            .as_str(),
+        ),
+    );
+
+    log
+}
+
+/// Return a git commit log message for the given commit
+pub fn git_log_message(commit: &String) -> String {
+    run(Command::new("git")
+        .arg("show")
+        .arg("--shortstat")
+        .arg(commit))
 }
 
 const RENAME_THRESHOLD: u16 = 50;
 
-fn to_stats(output: Output) -> Vec<Stat> {
-    let out_str = String::from_utf8(output.stdout)
-        .expect("output should be a UTF8 string");
-    out_str
-        .trim_end_matches("\n")
-        .split("\n")
+fn to_stats(output: String) -> Vec<Stat> {
+    output
+        .lines()
         .filter(|x| x.len() > 0)
         .map(|x| Stat::new(x))
         .collect()
 }
 
-/// Return file diff stats between two commits
+/// Return file diff stats between two commits, or for a particular commit
+/// (between that commit and its parent)
 pub fn git_diff_stat(range: &CommitRange) -> Vec<Stat> {
-    let output = Command::new("git")
-        .arg("diff")
+    let cmd = if range.end.is_some() { "diff" } else { "show" };
+    let output = run(Command::new("git")
+        .arg(cmd)
         .arg("--numstat")
+        .arg("--format=")
         .arg(format!("--find-renames={}", RENAME_THRESHOLD))
-        .arg(range.to_string())
-        .output()
-        .expect("unable to get diff stat");
+        .arg(range.to_string()));
     to_stats(output)
 }
 
@@ -348,7 +385,7 @@ pub fn git_diff_file<'a>(
                 "diff-tree"
             }
         }
-        _ => "diff-index",
+        _ => "show",
     };
     let opts = match opts {
         Some(o) => o,
@@ -356,11 +393,12 @@ pub fn git_diff_file<'a>(
     };
 
     let root = git_root();
-    let mut command = Command::new("git");
+    let command = &mut Command::new("git");
     command
         .current_dir(root)
         .arg(cmd)
         .arg("--patience")
+        .arg("--format=")
         .arg(format!("--find-renames={}", RENAME_THRESHOLD))
         .arg("-p");
 
@@ -374,8 +412,6 @@ pub fn git_diff_file<'a>(
         command.arg(old_path.clone());
     }
 
-    let output = command.output().expect("unable to get diff");
-    let output =
-        String::from_utf8(output.stdout).expect("invalid output string");
+    let output = run(command);
     DiffFile::new(&output, range)
 }

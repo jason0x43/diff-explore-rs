@@ -62,7 +62,7 @@ impl<'a> Widget for StatusLineView<'a> {
             _ => area.width,
         };
 
-        let status = Paragraph::new(format!(" {}", self.statusline.status))
+        let status = Paragraph::new(format!("{}", self.statusline.status))
             .style(Style::default().bg(Color::Indexed(8)));
         Widget::render(
             status,

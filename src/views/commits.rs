@@ -4,14 +4,17 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use tui::{
     buffer::Buffer,
-    layout::Rect,
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans},
-    widgets::{Block, List, ListItem, ListState, StatefulWidget, Widget},
+    widgets::{
+        Block, Borders, List, ListItem, ListState, Paragraph, StatefulWidget,
+        Widget,
+    },
 };
 
 use crate::{
-    git::{git_log, Commit, CommitRange, Decoration},
+    git::{git_log, git_log_message, Commit, CommitRange, Decoration},
     graph::{CommitRow, Track},
     list::{ListCursor, ListData, ListInfo, ListScroll},
     search::Search,
@@ -21,15 +24,6 @@ use crate::{
     views::statusline::Status,
 };
 use crate::{graph::CommitGraph, widget::WidgetWithBlock};
-
-#[derive(Debug, Clone)]
-pub struct Commits {
-    list: ListData,
-    commits: Vec<Commit>,
-    mark: Option<usize>,
-    graph: CommitGraph,
-    query: Option<String>,
-}
 
 /// Formatted fields that are used for searching and rendering
 struct CommitFields {
@@ -78,6 +72,16 @@ impl CommitFields {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Commits {
+    list: ListData,
+    commits: Vec<Commit>,
+    mark: Option<usize>,
+    graph: CommitGraph,
+    query: Option<String>,
+    show_details: bool,
+}
+
 impl Commits {
     pub fn new() -> Commits {
         let commits = git_log();
@@ -89,6 +93,7 @@ impl Commits {
             commits,
             graph,
             query: None,
+            show_details: false,
         }
     }
 
@@ -129,6 +134,10 @@ impl Commits {
         };
 
         CommitRange { start, end }
+    }
+
+    pub fn toggle_show_details(&mut self) {
+        self.show_details = !self.show_details;
     }
 }
 
@@ -449,7 +458,17 @@ static COMMIT_RE: Lazy<Regex> =
 impl<'a> Widget for CommitsView<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let mut colors: HashMap<String, Color> = HashMap::new();
-        self.commits.list.height = area.height as usize;
+        let constraints: Vec<Constraint> = if self.commits.show_details {
+            vec![Constraint::Percentage(50), Constraint::Percentage(50)]
+        } else {
+            vec![Constraint::Percentage(100)]
+        };
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(constraints)
+            .split(area);
+
+        self.commits.list.height = layout[0].height as usize;
 
         let hash_width = self.commits.commits[0].hash.len();
 
@@ -590,6 +609,19 @@ impl<'a> Widget for CommitsView<'a> {
             list = list.block(b);
         }
 
-        StatefulWidget::render(list, area, buf, self.commits.list_state_mut());
+        StatefulWidget::render(
+            list,
+            layout[0],
+            buf,
+            self.commits.list_state_mut(),
+        );
+
+        if self.commits.show_details {
+            let commit = &self.commits.commits[self.commits.cursor()].hash;
+            let message = git_log_message(commit);
+            let log = Paragraph::new(message)
+                .block(Block::default().borders(Borders::ALL));
+            log.render(layout[1], buf);
+        }
     }
 }
