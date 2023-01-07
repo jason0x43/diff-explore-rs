@@ -11,7 +11,7 @@ use crate::{
     events::Key,
     stack::Stack,
     views::{
-        commits::CommitLog,
+        commitlog::CommitLog,
         console::Console,
         diff::Diff,
         stats::Stats,

@@ -22,7 +22,7 @@ use crate::{
     search::Search,
     stack::Stack,
     views::{
-        commits::CommitsView,
+        commitlog::CommitsView,
         console::ConsoleView,
         diff::{DiffView, DiffViewOpts},
         stats::StatsView,

@@ -1,4 +1,4 @@
-pub mod commits;
+pub mod commitlog;
 pub mod console;
 pub mod diff;
 pub mod stats;
