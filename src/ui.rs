@@ -57,7 +57,7 @@ fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
     let search = app.entering_search();
 
     match app.views.top() {
-        Some(View::Commits(v)) => {
+        Some(View::CommitLog(v)) => {
             if let Some(s) = search {
                 app.statusline.set_status(search_status(s));
             } else {

@@ -9,7 +9,7 @@ use tui::{
 };
 
 use crate::{
-    git::{git_diff_file, CommitRange, DiffFile, DiffLine, Stat},
+    git::{git_diff_file, DiffAction, FileDiff, DiffLine, Stat},
     list::{ListInfo, ListScroll},
     search::Search,
     ui::highlight_spans,
@@ -20,14 +20,14 @@ use crate::{
 pub struct Diff {
     height: usize,
     offset: usize,
-    diff: DiffFile,
-    range: CommitRange,
+    diff: FileDiff,
+    range: DiffAction,
     stat: Stat,
     search: Option<String>,
 }
 
 impl Diff {
-    pub fn new(stat: &Stat, range: &CommitRange) -> Diff {
+    pub fn new(stat: &Stat, range: &DiffAction) -> Diff {
         let diff = git_diff_file(&stat.path, &stat.old_path, &range, None);
 
         Diff {

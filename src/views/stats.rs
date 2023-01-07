@@ -7,7 +7,7 @@ use tui::{
 };
 
 use crate::{
-    git::{git_diff_stat, CommitRange, Stat},
+    git::{git_diff_stat, DiffAction, Stat},
     list::{ListCursor, ListData, ListInfo, ListScroll},
     search::Search,
     ui::highlight_spans,
@@ -18,23 +18,23 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Stats {
     list: ListData,
-    range: CommitRange,
+    commits: DiffAction,
     stats: Vec<Stat>,
     search: Option<String>,
 }
 
 impl Stats {
-    pub fn new(range: CommitRange) -> Stats {
+    pub fn new(range: DiffAction) -> Stats {
         Stats {
             list: ListData::new(),
-            stats: git_diff_stat(&range),
-            range,
+            stats: git_diff_stat(&range, None),
+            commits: range,
             search: None,
         }
     }
 
-    pub fn commit_range(&self) -> &CommitRange {
-        &self.range
+    pub fn commits(&self) -> &DiffAction {
+        &self.commits
     }
 
     pub fn current_stat(&self) -> &Stat {
@@ -79,7 +79,7 @@ impl ListCursor for Stats {
 
 impl Status for Stats {
     fn status(&self) -> String {
-        format!("{}", self.range)
+        format!("{}", self.commits)
     }
 }
 

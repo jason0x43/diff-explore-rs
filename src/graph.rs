@@ -1,4 +1,4 @@
-use crate::git::Commit;
+use crate::git::{Commit, GitRef};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Track {
@@ -13,21 +13,17 @@ pub enum Track {
 #[derive(Debug, Clone)]
 pub struct CommitCell {
     /// the direct ancestor commit of the cell
-    pub parent: Option<String>,
+    pub parent: Option<GitRef>,
     /// the commit that this cell is related to; transient cells (Merges,
     /// ContinueRights, etc.) will have `related` but not `hash`; any cell with
     /// a hash value should have `hash` == `related`
-    pub related: String,
+    pub related: GitRef,
     /// how the cell relates to the next row
     pub track: Track,
 }
 
 impl CommitCell {
-    fn new(
-        parent: Option<&String>,
-        related: String,
-        track: Track,
-    ) -> CommitCell {
+    fn new(parent: Option<&GitRef>, related: GitRef, track: Track) -> CommitCell {
         CommitCell {
             parent: match parent {
                 Some(s) => Some(s.clone()),
@@ -99,7 +95,7 @@ impl CommitGraph {
                 .iter()
                 .map(|c| {
                     // used to walk through parent commits
-                    let mut parent_hash_iter = c.parent_hashes.iter();
+                    let mut parent_hash_iter = c.parent_grefs.iter();
 
                     // initialize the current row of tracks with all the
                     // non-None tracks from the previous row
@@ -175,7 +171,7 @@ impl CommitGraph {
 
                     if let Some(x) = tracks
                         .iter()
-                        .position(|t| t.parent == Some(c.hash.clone()))
+                        .position(|t| t.parent == Some(c.gref.clone()))
                     {
                         // this commit's hash is in the track list, so its node
                         // will be inserted into the track list at the commit
@@ -194,8 +190,8 @@ impl CommitGraph {
                         // clear out any other instances of this commit's hash
                         // in the track list
                         for y in x + 1..tracks.len() {
-                            if tracks[y].parent == Some(c.hash.clone()) {
-                                tracks[y].related = c.hash.clone();
+                            if tracks[y].parent == Some(c.gref.clone()) {
+                                tracks[y].related = c.gref.clone();
                                 tracks[y].parent = None;
 
                                 if tracks[y].track == Track::ContinueRight {
@@ -222,7 +218,7 @@ impl CommitGraph {
                         if hash.is_some() {
                             tracks.push(CommitCell::new(
                                 hash,
-                                String::from(hash.unwrap()),
+                                hash.unwrap().clone(),
                                 Track::Node,
                             ));
                         }

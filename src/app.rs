@@ -2,6 +2,7 @@ use std::collections::LinkedList;
 use std::time::{Duration, Instant};
 
 use crate::events::{AppEvent, Events};
+use crate::git::DiffAction;
 use crate::list::{ListCursor, ListScroll};
 use crate::log;
 use crate::search::Search;
@@ -10,7 +11,7 @@ use crate::{
     events::Key,
     stack::Stack,
     views::{
-        commits::Commits,
+        commits::CommitLog,
         console::Console,
         diff::Diff,
         stats::Stats,
@@ -19,7 +20,7 @@ use crate::{
 };
 
 pub enum View {
-    Commits(Commits),
+    CommitLog(CommitLog),
     Stats(Stats),
     Diff(Diff),
 }
@@ -42,9 +43,9 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let mut views = LinkedList::new();
-        let commits = Commits::new();
+        let commits = CommitLog::new();
         let status = commits.status();
-        views.push(View::Commits(commits));
+        views.push(View::CommitLog(commits));
 
         Self {
             views,
@@ -106,7 +107,7 @@ impl App {
                 Key::Enter => {
                     self.typing_search = false;
                     match self.views.top() {
-                        Some(View::Commits(v)) => {
+                        Some(View::CommitLog(v)) => {
                             v.search_next();
                         }
                         Some(View::Stats(v)) => {
@@ -135,7 +136,7 @@ impl App {
                     self.typing_search = false;
                 }
                 Key::Ctrl('n') => match self.views.top() {
-                    Some(View::Commits(v)) => {
+                    Some(View::CommitLog(v)) => {
                         v.search_next();
                     }
                     Some(View::Stats(v)) => {
@@ -147,7 +148,7 @@ impl App {
                     _ => {}
                 },
                 Key::Ctrl('p') => match self.views.top() {
-                    Some(View::Commits(v)) => {
+                    Some(View::CommitLog(v)) => {
                         v.search_prev();
                     }
                     Some(View::Stats(v)) => {
@@ -165,7 +166,7 @@ impl App {
             match key {
                 Key::Char('G') => match last_key {
                     Key::Char('1') => match self.views.top() {
-                        Some(View::Commits(v)) => {
+                        Some(View::CommitLog(v)) => {
                             v.cursor_to_top();
                             self.pending_keys.clear();
                         }
@@ -198,13 +199,13 @@ impl App {
                     self.pending_keys.push(key);
                 }
                 Key::Char('l') => match self.views.top() {
-                    Some(View::Commits(v)) => {
+                    Some(View::CommitLog(v)) => {
                         v.toggle_show_details();
                     }
                     _ => {}
-                }
+                },
                 Key::Char('q') => match self.views.top() {
-                    Some(View::Commits(_v)) => {
+                    Some(View::CommitLog(_v)) => {
                         self.quit();
                     }
                     Some(View::Stats(_v)) => {
@@ -232,7 +233,7 @@ impl App {
                     self.typing_search = true;
                 }
                 Key::Char('G') => match self.views.top() {
-                    Some(View::Commits(v)) => {
+                    Some(View::CommitLog(v)) => {
                         v.cursor_to_bottom();
                     }
                     Some(View::Diff(v)) => {
@@ -246,7 +247,7 @@ impl App {
                 Key::Char('n') => {
                     if self.search.is_some() {
                         match self.views.top() {
-                            Some(View::Commits(v)) => {
+                            Some(View::CommitLog(v)) => {
                                 v.search_next();
                             }
                             Some(View::Diff(v)) => {
@@ -262,7 +263,7 @@ impl App {
                 Key::Char('N') => {
                     if self.search.is_some() {
                         match self.views.top() {
-                            Some(View::Commits(v)) => {
+                            Some(View::CommitLog(v)) => {
                                 v.search_prev();
                             }
                             Some(View::Diff(v)) => {
@@ -277,7 +278,7 @@ impl App {
                 }
                 Key::Char('>') => self.toggle_console(),
                 Key::Char(' ') => match self.views.top() {
-                    Some(View::Commits(v)) => {
+                    Some(View::CommitLog(v)) => {
                         v.cursor_mark();
                     }
                     Some(View::Diff(v)) => {
@@ -286,7 +287,7 @@ impl App {
                     _ => {}
                 },
                 Key::Up | Key::Char('k') => match self.views.top() {
-                    Some(View::Commits(v)) => {
+                    Some(View::CommitLog(v)) => {
                         v.cursor_up();
                     }
                     Some(View::Stats(v)) => {
@@ -298,7 +299,7 @@ impl App {
                     _ => {}
                 },
                 Key::Down | Key::Char('j') => match self.views.top() {
-                    Some(View::Commits(v)) => {
+                    Some(View::CommitLog(v)) => {
                         v.cursor_down();
                     }
                     Some(View::Stats(v)) => {
@@ -310,7 +311,7 @@ impl App {
                     _ => {}
                 },
                 Key::Ctrl('u') => match self.views.top() {
-                    Some(View::Commits(v)) => {
+                    Some(View::CommitLog(v)) => {
                         v.cursor_page_up();
                     }
                     Some(View::Stats(v)) => {
@@ -322,7 +323,7 @@ impl App {
                     _ => {}
                 },
                 Key::Ctrl('f') => match self.views.top() {
-                    Some(View::Commits(v)) => {
+                    Some(View::CommitLog(v)) => {
                         v.cursor_page_down();
                     }
                     Some(View::Stats(v)) => {
@@ -344,15 +345,27 @@ impl App {
                     }
                 }
                 Key::Ctrl('c') => self.quit(),
+                Key::Char('s') => match self.views.top() {
+                    Some(View::CommitLog(v)) => {
+                        let selected = v.get_selected();
+                        let commits = DiffAction::show(selected);
+                        self.views.push(View::Stats(Stats::new(commits)));
+                    }
+                    _ => {}
+                },
                 Key::Enter => match self.views.top() {
-                    Some(View::Commits(v)) => {
-                        let range = v.get_range();
-                        self.views.push(View::Stats(Stats::new(range)));
+                    Some(View::CommitLog(v)) => {
+                        // TODO: Enter should be a diff against the working
+                        // directory, not a show
+                        let selected = v.get_selected();
+                        let marked = v.get_marked();
+                        let action = DiffAction::diff(selected, marked);
+                        self.views.push(View::Stats(Stats::new(action)));
                     }
                     Some(View::Stats(v)) => {
                         let stat = v.current_stat().clone();
-                        let range = v.commit_range().clone();
-                        self.views.push(View::Diff(Diff::new(&stat, &range)));
+                        let commits = v.commits().clone();
+                        self.views.push(View::Diff(Diff::new(&stat, &commits)));
                         if let Ok(p) = stat.path() {
                             match self.events.watch_file(&p) {
                                 Err(e) => {

@@ -14,7 +14,7 @@ use tui::{
 };
 
 use crate::{
-    git::{git_log, git_log_message, Commit, CommitRange, Decoration},
+    git::{git_log, git_log_message, Commit, GitRef, Target},
     graph::{CommitRow, Track},
     list::{ListCursor, ListData, ListInfo, ListScroll},
     search::Search,
@@ -27,7 +27,7 @@ use crate::{graph::CommitGraph, widget::WidgetWithBlock};
 
 /// Formatted fields that are used for searching and rendering
 struct CommitFields {
-    hash: String,
+    hash: GitRef,
     age: String,
     author: String,
     branches: Vec<String>,
@@ -39,17 +39,17 @@ struct CommitFields {
 
 impl CommitFields {
     fn new(c: &Commit) -> CommitFields {
-        let deco = Decoration::from_commit(c);
+        let deco = &c.decoration;
         CommitFields {
             age: c.relative_time(),
             author: c.author_name.clone(),
-            hash: c.hash.clone(),
+            hash: c.gref.clone(),
             branches: deco
                 .branches
                 .iter()
                 .map(|b| format!("[{}]", b))
                 .collect(),
-            head: match deco.head {
+            head: match &deco.head {
                 Some(h) => Some(format!("[{}]", h)),
                 _ => None,
             },
@@ -73,7 +73,7 @@ impl CommitFields {
 }
 
 #[derive(Debug, Clone)]
-pub struct Commits {
+pub struct CommitLog {
     list: ListData,
     commits: Vec<Commit>,
     mark: Option<usize>,
@@ -82,12 +82,12 @@ pub struct Commits {
     show_details: bool,
 }
 
-impl Commits {
-    pub fn new() -> Commits {
+impl CommitLog {
+    pub fn new() -> CommitLog {
         let commits = git_log();
         let graph = CommitGraph::new(&commits);
 
-        Commits {
+        CommitLog {
             list: ListData::new(),
             mark: None,
             commits,
@@ -109,31 +109,22 @@ impl Commits {
         }
     }
 
-    pub fn get_range(&self) -> CommitRange {
-        let cursor = self.cursor();
-        let c = &self.commits;
-        let start = match self.mark {
-            Some(mark) => {
-                if mark > cursor {
-                    c[mark].hash.clone()
-                } else {
-                    c[cursor].hash.clone()
-                }
-            }
-            _ => c[cursor].hash.clone(),
-        };
-        let end = match self.mark {
-            Some(mark) => {
-                if mark > cursor {
-                    Some(c[cursor].hash.clone())
-                } else {
-                    Some(c[mark].hash.clone())
-                }
-            }
-            _ => None,
-        };
+    pub fn get_selected(&self) -> Target {
+        let r = &self.commits[self.cursor()].gref;
+        if r.is_staged() {
+            Target::STAGED
+        } else if r.is_unstaged() {
+            Target::UNSTAGED
+        } else {
+            Target::REF(r.clone())
+        }
+    }
 
-        CommitRange { start, end }
+    pub fn get_marked(&self) -> Option<GitRef> {
+        match self.mark {
+            Some(m) => Some(self.commits[m].gref.clone()),
+            _ => None,
+        }
     }
 
     pub fn toggle_show_details(&mut self) {
@@ -141,7 +132,7 @@ impl Commits {
     }
 }
 
-impl ListInfo for Commits {
+impl ListInfo for CommitLog {
     fn list_count(&self) -> usize {
         self.commits.len()
     }
@@ -155,7 +146,7 @@ impl ListInfo for Commits {
     }
 }
 
-impl ListScroll for Commits {
+impl ListScroll for CommitLog {
     fn height(&self) -> usize {
         self.list.height
     }
@@ -165,7 +156,7 @@ impl ListScroll for Commits {
     }
 }
 
-impl ListCursor for Commits {
+impl ListCursor for CommitLog {
     fn list_state(&self) -> &ListState {
         &self.list.state
     }
@@ -175,13 +166,22 @@ impl ListCursor for Commits {
     }
 }
 
-impl Status for Commits {
+impl Status for CommitLog {
     fn status(&self) -> String {
-        format!("{}", self.get_range())
+        let marked = self.get_marked();
+        let selected = self.get_selected();
+        match marked {
+            Some(m) => {
+                format!("{}..{}", m, selected)
+            }
+            _ => {
+                format!("{}", selected)
+            }
+        }
     }
 }
 
-impl Search for Commits {
+impl Search for CommitLog {
     fn set_search(&mut self, query: Option<String>) {
         self.query = query;
     }
@@ -202,12 +202,12 @@ impl Search for Commits {
 
 /// The Widget used to render Commits
 pub struct CommitsView<'a> {
-    commits: &'a mut Commits,
+    commits: &'a mut CommitLog,
     block: Option<Block<'a>>,
 }
 
 impl<'a> CommitsView<'a> {
-    pub fn new(commits: &'a mut Commits) -> CommitsView<'a> {
+    pub fn new(commits: &'a mut CommitLog) -> CommitsView<'a> {
         CommitsView {
             commits,
             block: None,
@@ -229,8 +229,8 @@ const HLINE_CHAR: &str = "─";
 
 /// Get the color to be used for continuation lines in the graph
 fn get_commit_color<'a>(
-    hash: &String,
-    colors: &'a mut HashMap<String, Color>,
+    hash: &GitRef,
+    colors: &'a mut HashMap<GitRef, Color>,
 ) -> Color {
     if !colors.contains_key(hash) {
         colors
@@ -241,9 +241,9 @@ fn get_commit_color<'a>(
 
 /// Render a cell in a track
 fn draw_cell<'a>(
-    hash: &String,
+    hash: &GitRef,
     char: &'a str,
-    colors: &mut HashMap<String, Color>,
+    colors: &mut HashMap<GitRef, Color>,
 ) -> Span<'a> {
     Span::styled(char, Style::default().fg(get_commit_color(hash, colors)))
 }
@@ -251,13 +251,13 @@ fn draw_cell<'a>(
 /// Render the graph for a row
 fn draw_graph<'a>(
     node: CommitRow,
-    colors: &mut HashMap<String, Color>,
+    colors: &mut HashMap<GitRef, Color>,
 ) -> Vec<Span<'a>> {
     let mut graph: Vec<Span> = vec![];
 
     // set to the commit hash of the target when a horizontal line should be
     // drawn
-    let mut draw_hline: Option<&String> = None;
+    let mut draw_hline: Option<&GitRef> = None;
 
     if node.tracks.len() == 0 {
         return graph;
@@ -457,7 +457,7 @@ static COMMIT_RE: Lazy<Regex> =
 
 impl<'a> Widget for CommitsView<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let mut colors: HashMap<String, Color> = HashMap::new();
+        let mut colors: HashMap<GitRef, Color> = HashMap::new();
         let constraints: Vec<Constraint> = if self.commits.show_details {
             vec![Constraint::Percentage(50), Constraint::Percentage(50)]
         } else {
@@ -469,8 +469,6 @@ impl<'a> Widget for CommitsView<'a> {
             .split(area);
 
         self.commits.list.height = layout[0].height as usize;
-
-        let hash_width = self.commits.commits[0].hash.len();
 
         let rows = self
             .commits
@@ -515,7 +513,7 @@ impl<'a> Widget for CommitsView<'a> {
                 let mut spans: Vec<Span> = vec![
                     // commit hash
                     Span::styled(
-                        format!("{}", &f.hash[..hash_width]),
+                        format!("{}", f.hash),
                         Style::default().fg(Color::Indexed(5)),
                     ),
                     Span::from(" "),
@@ -617,7 +615,7 @@ impl<'a> Widget for CommitsView<'a> {
         );
 
         if self.commits.show_details {
-            let commit = &self.commits.commits[self.commits.cursor()].hash;
+            let commit = &self.commits.commits[self.commits.cursor()].gref;
             let message = git_log_message(commit);
             let log = Paragraph::new(message)
                 .block(Block::default().borders(Borders::ALL));
