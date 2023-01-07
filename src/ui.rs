@@ -3,7 +3,7 @@ use crossterm::{
     execute,
     terminal::{
         disable_raw_mode, enable_raw_mode, EnterAlternateScreen,
-        LeaveAlternateScreen,
+        LeaveAlternateScreen, SetTitle,
     },
 };
 use std::io::{self, Stdout};
@@ -177,7 +177,13 @@ impl Ui {
     pub fn new() -> Ui {
         enable_raw_mode().unwrap();
         let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen, EnableMouseCapture).unwrap();
+        execute!(
+            stdout,
+            EnterAlternateScreen,
+            EnableMouseCapture,
+            SetTitle("diff-explore")
+        )
+        .unwrap();
         let backend = CrosstermBackend::new(stdout);
         let term = Terminal::new(backend).unwrap();
 
