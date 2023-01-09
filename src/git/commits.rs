@@ -26,7 +26,7 @@ impl GitRef {
     }
 
     pub fn is_unstaged(&self) -> bool {
-        self.ref_str.starts_with("0")
+        self.ref_str == "0".repeat(self.ref_str.len())
     }
 
     pub fn len(&self) -> usize {
