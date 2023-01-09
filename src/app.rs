@@ -345,22 +345,20 @@ impl App {
                     }
                 }
                 Key::Ctrl('c') => self.quit(),
-                Key::Char('s') => match self.views.top() {
+                Key::Char('d') => match self.views.top() {
                     Some(View::CommitLog(v)) => {
                         let selected = v.get_selected();
-                        let commits = DiffAction::show(selected);
-                        self.views.push(View::Stats(Stats::new(commits)));
+                        let marked = v.get_marked();
+                        let action = DiffAction::diff(selected, marked);
+                        self.views.push(View::Stats(Stats::new(action)));
                     }
                     _ => {}
                 },
                 Key::Enter => match self.views.top() {
                     Some(View::CommitLog(v)) => {
-                        // TODO: Enter should be a diff against the working
-                        // directory, not a show
                         let selected = v.get_selected();
-                        let marked = v.get_marked();
-                        let action = DiffAction::diff(selected, marked);
-                        self.views.push(View::Stats(Stats::new(action)));
+                        let commits = DiffAction::show(selected);
+                        self.views.push(View::Stats(Stats::new(commits)));
                     }
                     Some(View::Stats(v)) => {
                         let stat = v.current_stat().clone();

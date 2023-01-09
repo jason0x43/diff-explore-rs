@@ -125,19 +125,10 @@ pub struct GitDiffOpts {
     ignore_whitespace: bool,
 }
 
-// Possible diffs:
-//
-// 1. staged..unstaged -> diff HEAD
-// 2. staged -> diff --staged
-// 3. unstaged -> diff
-// 4. abc123 -> diff abc123 (against working directory)
-// 5. abc123..staged > diff --staged abc123
-// 6. abc123..unstaged -> diff abc123
-
 /// Return file diff stats between two commits, or for a particular commit
 /// (between that commit and its parent)
 pub fn git_diff_stat(
-    commits: &DiffAction,
+    action: &DiffAction,
     opts: Option<GitDiffOpts>,
 ) -> Vec<Stat> {
     let opts = match opts {
@@ -147,13 +138,18 @@ pub fn git_diff_stat(
 
     let cmd = &mut Command::new("git");
 
-    if commits.is_show() {
-        cmd.arg("show").arg("--format=");
+    if action.is_show() {
+        if action.target == Target::STAGED || action.target == Target::UNSTAGED
+        {
+            cmd.arg("diff");
+        } else {
+            cmd.arg("show").arg("--format=");
+        }
     } else {
         cmd.arg("diff");
     }
 
-    if commits.has_staged() {
+    if action.has_staged() {
         cmd.arg("--cached");
     }
 
@@ -164,7 +160,7 @@ pub fn git_diff_stat(
         cmd.arg("-w");
     }
 
-    match &commits.target {
+    match &action.target {
         Target::STAGED | Target::UNSTAGED => {}
         Target::REF(h) => {
             cmd.arg(h);
@@ -182,7 +178,7 @@ pub fn git_diff_stat(
 pub fn git_diff_file<'a>(
     path: &str,
     old_path: &str,
-    commits: &DiffAction,
+    action: &DiffAction,
     opts: Option<GitDiffOpts>,
 ) -> FileDiff {
     let opts = match opts {
@@ -193,13 +189,18 @@ pub fn git_diff_file<'a>(
     let command = &mut Command::new("git");
     command.current_dir(git_root());
 
-    if commits.is_show() {
-        command.arg("show");
+    if action.is_show() {
+        if action.target == Target::STAGED || action.target == Target::UNSTAGED
+        {
+            command.arg("diff");
+        } else {
+            command.arg("show");
+        }
     } else {
         command.arg("diff");
     }
 
-    if commits.has_staged() {
+    if action.has_staged() {
         command.arg("--cached");
     }
 
@@ -213,14 +214,14 @@ pub fn git_diff_file<'a>(
         command.arg("-w");
     }
 
-    match &commits.anchor {
+    match &action.anchor {
         Some(h) => {
             command.arg(h);
         }
         _ => {}
     }
 
-    match &commits.target {
+    match &action.target {
         Target::REF(h) => {
             command.arg(h);
         }
@@ -235,7 +236,7 @@ pub fn git_diff_file<'a>(
 
     let output = run(command);
     crate::log!("got {} lines of output", output.lines().count());
-    FileDiff::new(&output, commits)
+    FileDiff::new(&output, action)
 }
 
 /// Return true if there are changes across a range
