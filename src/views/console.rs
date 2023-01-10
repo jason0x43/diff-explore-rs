@@ -27,16 +27,20 @@ impl Message {
 }
 
 pub struct Console {
-    offset: usize,
+    offset: Option<usize>,
     height: usize,
 }
 
 impl Console {
     pub fn new() -> Console {
         Console {
-            offset: 0,
+            offset: None,
             height: 0,
         }
+    }
+
+    pub fn auto_scroll(&mut self) {
+        self.offset = None;
     }
 }
 
@@ -46,11 +50,21 @@ impl ListInfo for Console {
     }
 
     fn list_pos(&self) -> usize {
-        self.offset
+        match self.offset {
+            Some(o) => o,
+            _ => {
+                let num_lines = get_num_lines();
+                if num_lines > self.height() {
+                    num_lines - self.height()
+                } else {
+                    0
+                }
+            }
+        }
     }
 
     fn set_list_pos(&mut self, pos: usize) {
-        self.offset = pos;
+        self.offset = Some(pos);
     }
 }
 
@@ -91,13 +105,25 @@ impl<'a> Widget for ConsoleView<'a> {
                 .map(|m| m.content.clone())
                 .collect::<Vec<String>>()
                 .join("\n"),
-        )
-        .scroll((self.console.offset as u16, 0));
+        );
 
         if let Some(b) = self.block {
             console = console.block(b);
             self.console.height -= 2;
         }
+
+        let offset = match self.console.offset {
+            Some(o) => o,
+            _ => {
+                if messages.len() > self.console.height {
+                    messages.len() - self.console.height
+                } else {
+                    0
+                }
+            }
+        };
+
+        console = console.scroll((offset as u16, 0));
 
         Widget::render(console, area, buf);
     }
@@ -105,8 +131,7 @@ impl<'a> Widget for ConsoleView<'a> {
 
 static MESSAGES: Lazy<Mutex<Vec<Message>>> =
     Lazy::new(|| Mutex::new(Vec::new()));
-static NUM_MESSAGE_LINES: Lazy<Mutex<usize>> =
-    Lazy::new(|| Mutex::new(0));
+static NUM_MESSAGE_LINES: Lazy<Mutex<usize>> = Lazy::new(|| Mutex::new(0));
 
 pub fn console_log(message: &str) {
     MESSAGES.lock().unwrap().push(Message::new(message));

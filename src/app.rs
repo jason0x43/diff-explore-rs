@@ -344,6 +344,11 @@ impl App {
                         self.console.scroll_up();
                     }
                 }
+                Key::Char('S') => {
+                    if self.show_console {
+                        self.console.auto_scroll();
+                    }
+                }
                 Key::Ctrl('c') => self.quit(),
                 Key::Char('d') => match self.views.top() {
                     Some(View::CommitLog(v)) => {
