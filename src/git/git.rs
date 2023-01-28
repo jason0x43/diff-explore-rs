@@ -50,15 +50,16 @@ pub fn git_log() -> Vec<Commit> {
     let head = String::from(&git_id()[..hash_len]);
 
     if has_changes(&DiffAction::staged()) {
-        let staged_hash = GitRef::staged(hash_len);
         log.insert(
             0,
-            Commit::from_log_line(
-                format!(
-                    "{}|{}|{}|{}|{}|{}|{}",
-                    staged_hash, head, "", "", "", "", "Staged changes"
-                )
-                .as_str(),
+            Commit::new(
+                GitRef::staged(hash_len),
+                vec![GitRef::new(head.clone())],
+                "",
+                "".into(),
+                "".into(),
+                None,
+                "Staged changes".into(),
             ),
         );
     }
@@ -66,18 +67,14 @@ pub fn git_log() -> Vec<Commit> {
     if has_changes(&DiffAction::unstaged()) {
         log.insert(
             0,
-            Commit::from_log_line(
-                format!(
-                    "{}|{}|{}|{}|{}|{}|{}",
-                    GitRef::unstaged(hash_len),
-                    head,
-                    "",
-                    "",
-                    "",
-                    "",
-                    "Unstaged changes"
-                )
-                .as_str(),
+            Commit::new(
+                GitRef::unstaged(hash_len),
+                vec![GitRef::new(head.clone())],
+                "",
+                "".into(),
+                "".into(),
+                None,
+                "Unstaged changes".into(),
             ),
         );
     }

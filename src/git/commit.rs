@@ -56,6 +56,32 @@ pub struct Commit {
 }
 
 impl Commit {
+    pub fn new(
+        commit_ref: GitRef,
+        parent_refs: Vec<GitRef>,
+        decoration: &str,
+        author_name: String,
+        author_email: String,
+        timestamp: Option<&str>,
+        subject: String,
+    ) -> Commit {
+        let ts = if let Some(t) = timestamp {
+            NaiveDateTime::from_timestamp_opt(t.parse().unwrap(), 0)
+        } else {
+            None
+        };
+
+        Commit {
+            commit_ref,
+            parent_refs,
+            decoration: Decoration::new(decoration),
+            author_name,
+            author_email,
+            subject,
+            timestamp: ts,
+        }
+    }
+
     pub fn from_log_line(line: &str) -> Commit {
         let parts: Vec<&str> = line.splitn(7, '|').collect();
         Commit {
