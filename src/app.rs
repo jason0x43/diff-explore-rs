@@ -229,7 +229,7 @@ impl App {
                     _ => {}
                 },
                 Key::Char('/') => {
-                    self.search = Some(String::from(""));
+                    self.search = Some("".into());
                     self.typing_search = true;
                 }
                 Key::Char('G') => match self.views.top() {

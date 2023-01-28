@@ -9,8 +9,16 @@ pub struct GitRef {
 }
 
 impl GitRef {
-    pub fn new(ref_str: String) -> GitRef {
-        GitRef { ref_str }
+    pub fn new(ref_str: impl Into<String>) -> GitRef {
+        GitRef { ref_str: ref_str.into() }
+    }
+
+    pub fn from_strs(refs: &[&str]) -> Vec<GitRef> {
+        let mut v = vec![];
+        for i in refs {
+            v.push(GitRef::new(*i));
+        }
+        v
     }
 
     pub fn unstaged(len: usize) -> GitRef {

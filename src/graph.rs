@@ -95,7 +95,7 @@ impl CommitGraph {
                 .iter()
                 .map(|c| {
                     // used to walk through parent commits
-                    let mut parent_hash_iter = c.parent_grefs.iter();
+                    let mut parent_hash_iter = c.parent_refs.iter();
 
                     // initialize the current row of tracks with all the
                     // non-None tracks from the previous row
@@ -171,7 +171,7 @@ impl CommitGraph {
 
                     if let Some(x) = tracks
                         .iter()
-                        .position(|t| t.parent == Some(c.gref.clone()))
+                        .position(|t| t.parent == Some(c.commit_ref.clone()))
                     {
                         // this commit's hash is in the track list, so its node
                         // will be inserted into the track list at the commit
@@ -190,8 +190,8 @@ impl CommitGraph {
                         // clear out any other instances of this commit's hash
                         // in the track list
                         for y in x + 1..tracks.len() {
-                            if tracks[y].parent == Some(c.gref.clone()) {
-                                tracks[y].related = c.gref.clone();
+                            if tracks[y].parent == Some(c.commit_ref.clone()) {
+                                tracks[y].related = c.commit_ref.clone();
                                 tracks[y].parent = None;
 
                                 if tracks[y].track == Track::ContinueRight {

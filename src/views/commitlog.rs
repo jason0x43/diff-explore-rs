@@ -43,7 +43,7 @@ impl CommitFields {
         CommitFields {
             age: c.relative_time(),
             author: c.author_name.clone(),
-            hash: c.gref.clone(),
+            hash: c.commit_ref.clone(),
             branches: deco
                 .branches
                 .iter()
@@ -110,7 +110,7 @@ impl CommitLog {
     }
 
     pub fn get_selected(&self) -> Target {
-        let r = &self.commits[self.cursor()].gref;
+        let r = &self.commits[self.cursor()].commit_ref;
         if r.is_staged() {
             Target::STAGED
         } else if r.is_unstaged() {
@@ -122,7 +122,7 @@ impl CommitLog {
 
     pub fn get_marked(&self) -> Option<GitRef> {
         match self.mark {
-            Some(m) => Some(self.commits[m].gref.clone()),
+            Some(m) => Some(self.commits[m].commit_ref.clone()),
             _ => None,
         }
     }
@@ -615,7 +615,7 @@ impl<'a> Widget for CommitsView<'a> {
         );
 
         if self.commits.show_details {
-            let commit = &self.commits.commits[self.commits.cursor()].gref;
+            let commit = &self.commits.commits[self.commits.cursor()].commit_ref;
             let message = git_log_message(commit);
             let log = Paragraph::new(message)
                 .block(Block::default().borders(Borders::ALL));

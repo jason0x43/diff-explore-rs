@@ -18,10 +18,10 @@ pub struct Message {
 }
 
 impl Message {
-    pub fn new(content: &str) -> Message {
+    pub fn new(content: impl Into<String>) -> Message {
         Message {
             time: SystemTime::now(),
-            content: String::from(content),
+            content: content.into(),
         }
     }
 }

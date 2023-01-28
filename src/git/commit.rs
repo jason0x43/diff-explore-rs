@@ -1,3 +1,5 @@
+use std::num::ParseIntError;
+
 use chrono::NaiveDateTime;
 
 use super::commits::GitRef;
@@ -12,7 +14,7 @@ pub struct Decoration {
 }
 
 impl Decoration {
-    fn new(deco: &String) -> Decoration {
+    fn new(deco: &str) -> Decoration {
         let mut branches: Vec<String> = vec![];
         let mut tags: Vec<String> = vec![];
         let mut refs: Vec<String> = vec![];
@@ -46,8 +48,8 @@ impl Decoration {
 
 #[derive(Debug, Clone)]
 pub struct Commit {
-    pub gref: GitRef,
-    pub parent_grefs: Vec<GitRef>,
+    pub commit_ref: GitRef,
+    pub parent_refs: Vec<GitRef>,
     pub decoration: Decoration,
     pub author_name: String,
     pub author_email: String,
@@ -84,14 +86,21 @@ impl Commit {
 
     pub fn from_log_line(line: &str) -> Commit {
         let parts: Vec<&str> = line.splitn(7, '|').collect();
+        let time: Result<u64, ParseIntError> = parts[5].parse();
+        if time.is_err() {
+            panic!("Invalid time '{}' in [{}]", parts[5], line);
+        }
+
         Commit {
-            gref: GitRef::new(parts[0].into()),
-            parent_grefs: if parts[1].len() > 0 {
-                parts[1].split(" ").map(|p| p.into()).collect()
+            commit_ref: GitRef::new(parts[0]),
+            parent_refs: if parts[1].len() > 0 {
+                GitRef::from_strs(
+                    parts[1].split(" ").collect::<Vec<&str>>().as_slice(),
+                )
             } else {
                 vec![]
             },
-            decoration: Decoration::new(&parts[2].into()),
+            decoration: Decoration::new(&parts[2]),
             author_name: parts[3].into(),
             author_email: parts[4].into(),
             timestamp: if parts[5].len() > 0 {

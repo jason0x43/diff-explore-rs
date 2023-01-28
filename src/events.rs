@@ -25,15 +25,15 @@ pub enum Key {
 
 impl Display for Key {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let name = match self {
-            Key::Enter => String::from("Enter"),
-            Key::Escape => String::from("Escape"),
-            Key::Backspace => String::from("Backspace"),
-            Key::Up => String::from("Up"),
-            Key::Down => String::from("Down"),
+        let name: String = match self {
+            Key::Enter => "Enter".into(),
+            Key::Escape => "Escape".into(),
+            Key::Backspace => "Backspace".into(),
+            Key::Up => "Up".into(),
+            Key::Down => "Down".into(),
             Key::Char(char) => char.to_string(),
             Key::Ctrl(char) => format!("Ctrl+{}", char),
-            Key::Unknown => String::from("unknown"),
+            Key::Unknown => "unknown".into(),
         };
         write!(f, "Key({})", name)
     }

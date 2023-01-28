@@ -10,40 +10,53 @@ use super::{
 
 const RENAME_THRESHOLD: u16 = 50;
 
-fn run(cmd: &mut Command) -> String {
-    crate::log!("running {:?}", cmd);
-    let output = cmd.output().expect("output of rev-parse should be string");
-    let out_str = String::from_utf8(output.stdout)
-        .expect("output should be a UTF8 string");
-    out_str.trim().into()
+pub trait Stdout {
+    fn stdout_str(&mut self) -> String;
+}
+
+impl Stdout for Command {
+    fn stdout_str(&mut self) -> String {
+        let output =
+            self.output().expect("output of command should be a string");
+        let out_str = String::from_utf8(output.stdout)
+            .expect("output should be a UTF8 string");
+        out_str.trim().into()
+    }
 }
 
 /// Return the absolute root directory of the current repo
 pub fn git_root() -> String {
-    run(Command::new("git").arg("rev-parse").arg("--show-toplevel"))
+    Command::new("git")
+        .arg("rev-parse")
+        .arg("--show-toplevel")
+        .stdout_str()
 }
 
 /// Return the commit hash of the current branch head
 pub fn git_id() -> String {
-    run(Command::new("git").arg("rev-parse").arg("HEAD"))
+    Command::new("git")
+        .arg("rev-parse")
+        .arg("HEAD")
+        .stdout_str()
 }
 
 /// Return a git commit log for the current repo
 pub fn git_log() -> Vec<Commit> {
-    let output = run(Command::new("git")
+    let output = Command::new("git")
         .arg("log")
         .arg("--all")
         .arg("--date=iso8601-strict")
         .arg("--decorate")
         // commit|decoration|author_name|author_email|timestamp|subject
-        .arg("--pretty=format:%h|%p|%d|%aN|%aE|%at|%s"));
+        .arg("--pretty=format:%h|%p|%d|%aN|%aE|%at|%s")
+        .stdout_str();
     let mut log = output
         .lines()
         .map(|line| Commit::from_log_line(line))
         .collect::<Vec<Commit>>();
 
     let hash_len = if let Some(c) = log.get(0) {
-        c.gref.len()
+        c.commit_ref.len()
     } else {
         6
     };
@@ -69,7 +82,7 @@ pub fn git_log() -> Vec<Commit> {
             0,
             Commit::new(
                 GitRef::unstaged(hash_len),
-                vec![GitRef::new(head.clone())],
+                vec![GitRef::new(head)],
                 "",
                 "".into(),
                 "".into(),
@@ -106,15 +119,16 @@ fn git_summary(commits: &DiffAction) -> String {
         _ => {}
     }
 
-    run(cmd)
+    cmd.stdout_str()
 }
 
 /// Return a git commit log message for the given commit
 pub fn git_log_message(commit: &GitRef) -> String {
-    run(Command::new("git")
+    Command::new("git")
         .arg("show")
         .arg("--shortstat")
-        .arg(commit))
+        .arg(commit)
+        .stdout_str()
 }
 
 #[derive(Default)]
@@ -164,7 +178,7 @@ pub fn git_diff_stat(
         }
     }
 
-    run(cmd)
+    cmd.stdout_str()
         .lines()
         .filter(|x| x.len() > 0)
         .map(|x| Stat::new(x))
@@ -231,7 +245,7 @@ pub fn git_diff_file<'a>(
         command.arg(old_path.clone());
     }
 
-    let output = run(command);
+    let output = command.stdout_str();
     crate::log!("got {} lines of output", output.lines().count());
     FileDiff::new(&output, action)
 }
