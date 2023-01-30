@@ -12,9 +12,10 @@ mod views;
 mod widget;
 
 use app::App;
+use git::is_git_repo;
 use std::{
     env::{self, set_current_dir},
-    io,
+    io, process::exit,
 };
 
 fn main() -> Result<(), io::Error> {
@@ -22,6 +23,14 @@ fn main() -> Result<(), io::Error> {
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
         set_current_dir(args[1].clone())?;
+    }
+
+    // Verify that we are in a git repo
+    if !is_git_repo() {
+        println!("Not a git repo");
+        exit(1);
+    } else {
+        println!("Is git repo");
     }
 
     // Initialize the app

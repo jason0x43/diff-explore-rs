@@ -25,6 +25,18 @@ impl Stdout for Command {
 }
 
 /// Return the absolute root directory of the current repo
+pub fn is_git_repo() -> bool {
+    let output = Command::new("git")
+        .arg("rev-parse")
+        .arg("--show-toplevel")
+        .output();
+    match output {
+        Err(_) => false,
+        Ok(output) => output.status.success(),
+    }
+}
+
+/// Return the absolute root directory of the current repo
 pub fn git_root() -> String {
     Command::new("git")
         .arg("rev-parse")
