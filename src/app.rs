@@ -378,8 +378,12 @@ impl App {
                                         e
                                     )
                                 }
-                                _ => {}
+                                _ => {
+                                    log!("Watching {:?}", stat.path(),)
+                                }
                             }
+                        } else {
+                            log!("Watching {:?}", stat.path(),)
                         }
                     }
                     _ => {}
