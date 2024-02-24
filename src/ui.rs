@@ -7,7 +7,7 @@ use crossterm::{
     },
 };
 use std::io::{self, Stdout};
-use tui::{
+use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
     style::Style,
@@ -32,7 +32,7 @@ use crate::{
 };
 
 /// Draw the UI
-fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
+fn draw(f: &mut Frame, app: &mut App) {
     let constraints = if app.should_show_console() {
         [
             Constraint::Percentage(50),

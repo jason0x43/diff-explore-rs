@@ -2,7 +2,7 @@ use std::sync::Mutex;
 use std::time::SystemTime;
 
 use once_cell::sync::Lazy;
-use tui::{
+use ratatui::{
     buffer::Buffer,
     layout::Rect,
     widgets::{Block, Paragraph, Widget},

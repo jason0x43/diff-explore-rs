@@ -1,8 +1,8 @@
-use tui::{
+use ratatui::{
     buffer::Buffer,
     layout::Rect,
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{Block, List, ListItem, ListState, StatefulWidget, Widget},
 };
 
@@ -178,7 +178,7 @@ impl<'a> Widget for StatsView<'a> {
                     )
                 }
 
-                let row = ListItem::new(Spans::from(spans));
+                let row = ListItem::new(Line::from(spans));
 
                 row
             })

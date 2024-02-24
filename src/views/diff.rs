@@ -1,15 +1,15 @@
 use std::{cmp::max, path::PathBuf};
 
-use tui::{
+use ratatui::{
     buffer::Buffer,
     layout::Rect,
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{Paragraph, Widget},
 };
 
 use crate::{
-    git::{git_diff_file, DiffAction, FileDiff, DiffLine, Stat},
+    git::{git_diff_file, DiffAction, DiffLine, FileDiff, Stat},
     list::{ListInfo, ListScroll},
     search::Search,
     ui::highlight_spans,
@@ -206,14 +206,14 @@ impl<'a> Widget for DiffView<'a> {
         let renderer =
             LineRenderer::new(line_nr_width, self.tab_width as usize, search);
 
-        let lines: Vec<Spans> =
+        let lines: Vec<Line> =
             diff.diff
                 .lines
                 .iter()
                 .enumerate()
                 .map(|(line_nr, line)| {
                     if line.len() > 0 {
-                        Spans::from(match &diff.diff.line_meta[line_nr] {
+                        Line::from(match &diff.diff.line_meta[line_nr] {
                             DiffLine::Add(meta) => renderer
                                 .render(16, 7, 2, meta.old, meta.new, line),
                             DiffLine::Del(meta) => renderer
@@ -233,7 +233,7 @@ impl<'a> Widget for DiffView<'a> {
                             _ => [Span::from(line.clone())].into(),
                         })
                     } else {
-                        Spans::from(vec![Span::from("")])
+                        Line::from(vec![Span::from("")])
                     }
                 })
                 .collect();

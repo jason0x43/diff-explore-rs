@@ -1,17 +1,17 @@
 use std::{cmp::min, collections::HashMap};
 
 use once_cell::sync::Lazy;
-use regex::Regex;
-use tui::{
+use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{
         Block, Borders, List, ListItem, ListState, Paragraph, StatefulWidget,
         Widget,
     },
 };
+use regex::Regex;
 
 use crate::{
     git::{git_log, git_log_message, Commit, GitRef, Target},
@@ -587,7 +587,7 @@ impl<'a> Widget for CommitsView<'a> {
                     )
                 }
 
-                let mut item = ListItem::new(Spans::from(spans));
+                let mut item = ListItem::new(Line::from(spans));
 
                 if let Some(m) = self.commits.mark {
                     if m == i {
@@ -615,7 +615,8 @@ impl<'a> Widget for CommitsView<'a> {
         );
 
         if self.commits.show_details {
-            let commit = &self.commits.commits[self.commits.cursor()].commit_ref;
+            let commit =
+                &self.commits.commits[self.commits.cursor()].commit_ref;
             let message = git_log_message(commit);
             let log = Paragraph::new(message)
                 .block(Block::default().borders(Borders::ALL));
