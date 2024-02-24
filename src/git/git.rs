@@ -251,10 +251,10 @@ pub fn git_diff_file<'a>(
         _ => {}
     }
 
-    command.arg("--").arg(path.clone());
+    command.arg("--").arg(path);
 
     if old_path.len() > 0 {
-        command.arg(old_path.clone());
+        command.arg(old_path);
     }
 
     let output = command.stdout_str();
