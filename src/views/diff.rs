@@ -219,7 +219,7 @@ impl<'a> Widget for DiffView<'a> {
                             DiffLine::Del(meta) => renderer
                                 .render(7, 16, 1, meta.old, meta.new, line),
                             DiffLine::Same(meta) => renderer
-                                .render(7, 7, 17, meta.old, meta.new, line),
+                                .render(7, 7, 7, meta.old, meta.new, line),
                             DiffLine::Start => [Span::styled(
                                 line.clone(),
                                 Style::default().fg(Color::Indexed(3)),

@@ -96,6 +96,7 @@ impl Events {
                 if let Ok(event) = res {
                     let evt = event.clone();
                     if let EventKind::Modify(ModifyKind::Data(_)) = event.kind {
+                        tracing::debug!("files changed: {:?}", evt.paths);
                         watch_tx
                             .send(AppEvent::FilesChanged(evt.paths))
                             .unwrap();
