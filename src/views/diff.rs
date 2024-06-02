@@ -24,6 +24,7 @@ pub struct Diff {
     range: DiffAction,
     stat: Stat,
     search: Option<String>,
+    show_line_numbers: bool,
 }
 
 impl Diff {
@@ -37,6 +38,7 @@ impl Diff {
             stat: stat.clone(),
             range: range.clone(),
             search: None,
+            show_line_numbers: true,
         }
     }
 
@@ -52,6 +54,10 @@ impl Diff {
             &self.range,
             None,
         );
+    }
+
+    pub fn toggle_show_line_numbers(&mut self) {
+        self.show_line_numbers = !self.show_line_numbers;
     }
 }
 
@@ -148,18 +154,21 @@ impl LineRenderer {
         new: u32,
         line: &str,
     ) -> Vec<Span> {
-        let mut spans: Vec<Span> = vec![
-            Span::styled(
+        let mut spans: Vec<Span> = vec![];
+
+        if self.line_nr_width > 0 {
+            spans.push(Span::styled(
                 format!("{:>width$}", old, width = self.line_nr_width),
                 Style::default().fg(Color::Indexed(old_color)),
-            ),
-            Span::from(" "),
-            Span::styled(
+            ));
+            spans.push(Span::from(" "));
+
+            spans.push(Span::styled(
                 format!("{:>width$}", new, width = self.line_nr_width),
                 Style::default().fg(Color::Indexed(new_color)),
-            ),
-            Span::from(" "),
-        ];
+            ));
+            spans.push(Span::from(" "));
+        }
 
         let search = if self.search.is_some()
             && !self.search.clone().unwrap().is_empty()
@@ -194,13 +203,17 @@ impl<'a> Widget for DiffView<'a> {
         let diff = self.diff;
         diff.height = area.height as usize;
 
-        let line_nr_width = match diff.diff.line_meta.iter().last() {
-            Some(DiffLine::Add(meta))
-            | Some(DiffLine::Del(meta))
-            | Some(DiffLine::Same(meta)) => {
-                max(meta.old.to_string().len(), meta.new.to_string().len())
+        let line_nr_width = if !diff.show_line_numbers {
+            0
+        } else {
+            match diff.diff.line_meta.iter().last() {
+                Some(DiffLine::Add(meta))
+                | Some(DiffLine::Del(meta))
+                | Some(DiffLine::Same(meta)) => {
+                    max(meta.old.to_string().len(), meta.new.to_string().len())
+                }
+                _ => 0,
             }
-            _ => 0,
         } as usize;
         let search = diff.search.clone();
         let renderer =
@@ -219,7 +232,7 @@ impl<'a> Widget for DiffView<'a> {
                             DiffLine::Del(meta) => renderer
                                 .render(7, 16, 1, meta.old, meta.new, line),
                             DiffLine::Same(meta) => renderer
-                                .render(7, 7, 7, meta.old, meta.new, line),
+                                .render(7, 7, 15, meta.old, meta.new, line),
                             DiffLine::Start => [Span::styled(
                                 line.clone(),
                                 Style::default().fg(Color::Indexed(3)),

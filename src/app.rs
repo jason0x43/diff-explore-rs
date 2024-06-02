@@ -240,6 +240,8 @@ impl App {
                             }
                             _ => {}
                         }
+                    } else if let Some(View::Diff(v)) = self.views.top() {
+                        v.toggle_show_line_numbers();
                     }
                 }
                 Key::Char('N') => {
