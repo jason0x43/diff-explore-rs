@@ -12,7 +12,6 @@ use crate::{
     search::Search,
     ui::highlight_spans,
     views::statusline::Status,
-    widget::WidgetWithBlock,
 };
 
 #[derive(Debug, Clone)]
@@ -114,12 +113,6 @@ pub struct StatsView<'a> {
 impl<'a> StatsView<'a> {
     pub fn new(stats: &'a mut Stats) -> StatsView {
         StatsView { stats, block: None }
-    }
-}
-
-impl<'a> WidgetWithBlock<'a> for StatsView<'a> {
-    fn block(&mut self, block: Block<'a>) {
-        self.block = Some(block);
     }
 }
 

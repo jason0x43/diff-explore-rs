@@ -4,7 +4,6 @@ use std::time::{Duration, Instant};
 use crate::events::{AppEvent, Events};
 use crate::git::DiffAction;
 use crate::list::{ListCursor, ListScroll};
-use crate::log;
 use crate::search::Search;
 use crate::ui::Ui;
 use crate::{
@@ -12,7 +11,6 @@ use crate::{
     stack::Stack,
     views::{
         commitlog::CommitLog,
-        console::Console,
         diff::Diff,
         stats::Stats,
         statusline::{Status, StatusLine},
@@ -27,14 +25,12 @@ pub enum View {
 
 pub struct App {
     pub views: LinkedList<View>,
-    pub console: Console,
     pub statusline: StatusLine,
     pub tab_width: u8,
     pub search: Option<String>,
     typing_search: bool,
     events: Events,
     should_quit: bool,
-    show_console: bool,
     pending_keys: Vec<Key>,
     pending_key_timeout: u64,
     last_key_time: Instant,
@@ -50,8 +46,6 @@ impl App {
         Self {
             views,
             should_quit: false,
-            console: Console::new(),
-            show_console: false,
             statusline: StatusLine::new(status, None),
             tab_width: 4,
             pending_keys: vec![],
@@ -67,16 +61,8 @@ impl App {
         self.should_quit = true;
     }
 
-    pub fn toggle_console(&mut self) {
-        self.show_console = !self.show_console;
-    }
-
     pub fn should_quit(&self) -> bool {
         self.should_quit
-    }
-
-    pub fn should_show_console(&self) -> bool {
-        self.show_console
     }
 
     pub fn entering_search(&self) -> Option<String> {
@@ -213,7 +199,11 @@ impl App {
                     Some(View::Diff(v)) => {
                         if let Ok(p) = v.path() {
                             if let Err(e) = self.events.unwatch_file(&p) {
-                                log!("Error unwatching {:?}: {}", v.path(), e)
+                                tracing::warn!(
+                                    "Error unwatching {:?}: {}",
+                                    v.path(),
+                                    e
+                                )
                             }
                         }
                         self.views.pop();
@@ -268,7 +258,6 @@ impl App {
                         }
                     }
                 }
-                Key::Char('>') => self.toggle_console(),
                 Key::Char(' ') => match self.views.top() {
                     Some(View::CommitLog(v)) => {
                         v.cursor_mark();
@@ -326,21 +315,6 @@ impl App {
                     }
                     _ => {}
                 },
-                Key::Char('J') => {
-                    if self.show_console {
-                        self.console.scroll_down();
-                    }
-                }
-                Key::Char('K') => {
-                    if self.show_console {
-                        self.console.scroll_up();
-                    }
-                }
-                Key::Char('S') => {
-                    if self.show_console {
-                        self.console.auto_scroll();
-                    }
-                }
                 Key::Ctrl('c') => self.quit(),
                 Key::Char('d') => {
                     if let Some(View::CommitLog(v)) = self.views.top() {
@@ -363,24 +337,24 @@ impl App {
                         if let Ok(p) = stat.path() {
                             match self.events.watch_file(&p) {
                                 Err(e) => {
-                                    log!(
+                                    tracing::warn!(
                                         "Error watching {:?}: {}",
                                         stat.path(),
                                         e
                                     )
                                 }
                                 _ => {
-                                    log!("Watching {:?}", stat.path(),)
+                                    tracing::info!("Watching {:?}", stat.path(),)
                                 }
                             }
                         } else {
-                            log!("Watching {:?}", stat.path(),)
+                            tracing::info!("Watching {:?}", stat.path(),)
                         }
                     }
                     _ => {}
                 },
                 _ => {
-                    log!("Unhandled: {}", key);
+                    tracing::debug!("Unhandled: {}", key);
                 }
             }
         }

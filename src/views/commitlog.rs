@@ -13,6 +13,7 @@ use ratatui::{
 };
 use regex::Regex;
 
+use crate::graph::CommitGraph;
 use crate::{
     git::{git_log, git_log_message, Commit, GitRef, Target},
     graph::{CommitRow, Track},
@@ -23,7 +24,6 @@ use crate::{
     ui::highlight_spans,
     views::statusline::Status,
 };
-use crate::{graph::CommitGraph, widget::WidgetWithBlock};
 
 /// Formatted fields that are used for searching and rendering
 struct CommitFields {
@@ -421,12 +421,6 @@ fn draw_graph<'a>(
     }
 
     graph
-}
-
-impl<'a> WidgetWithBlock<'a> for CommitsView<'a> {
-    fn block(&mut self, block: Block<'a>) {
-        self.block = Some(block);
-    }
 }
 
 static COMMIT_RE: Lazy<Regex> =

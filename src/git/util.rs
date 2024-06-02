@@ -246,7 +246,7 @@ pub fn git_diff_file(
     }
 
     let output = command.stdout_str();
-    crate::log!("got {} lines of output", output.lines().count());
+    tracing::debug!("got {} lines of output", output.lines().count());
     FileDiff::new(&output, action)
 }
 

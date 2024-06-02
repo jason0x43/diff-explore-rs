@@ -175,7 +175,6 @@ dependencies = [
  "chrono",
  "crossterm",
  "directories",
- "lazy_static",
  "notify",
  "once_cell",
  "ratatui",

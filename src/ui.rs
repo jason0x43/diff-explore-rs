@@ -6,15 +6,14 @@ use crossterm::{
         LeaveAlternateScreen, SetTitle,
     },
 };
-use std::io::{self, Stdout};
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
     style::Style,
     text::Span,
-    widgets::{Block, Borders},
     Frame, Terminal,
 };
+use std::io::{self, Stdout};
 
 use crate::{
     app::{App, View},
@@ -23,26 +22,16 @@ use crate::{
     stack::Stack,
     views::{
         commitlog::CommitsView,
-        console::ConsoleView,
         diff::{DiffView, DiffViewOpts},
         stats::StatsView,
         statusline::{Status, StatusLineView},
     },
-    widget::WidgetWithBlock,
 };
 
 /// Draw the UI
 fn draw(f: &mut Frame, app: &mut App) {
-    let constraints = if app.should_show_console() {
-        [
-            Constraint::Percentage(50),
-            Constraint::Percentage(50),
-            Constraint::Length(1),
-        ]
-        .as_ref()
-    } else {
-        [Constraint::Percentage(100), Constraint::Length(1)].as_ref()
-    };
+    let constraints =
+        [Constraint::Percentage(100), Constraint::Length(1)].as_ref();
 
     let size = f.size();
     let parts = Layout::default()
@@ -92,12 +81,6 @@ fn draw(f: &mut Frame, app: &mut App) {
         }
         _ => {}
     };
-
-    if app.should_show_console() {
-        let mut console = ConsoleView::new(&mut app.console);
-        console.block(Block::default().borders(Borders::ALL).title("Console"));
-        f.render_widget(console, parts[1]);
-    }
 
     let statusline = StatusLineView::new(&app.statusline);
     f.render_widget(

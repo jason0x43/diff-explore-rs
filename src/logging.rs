@@ -1,30 +1,17 @@
 use std::path::PathBuf;
 
 use directories::ProjectDirs;
-use lazy_static::lazy_static;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::{
     self, layer::SubscriberExt, util::SubscriberInitExt, Layer,
 };
 
-lazy_static! {
-    pub static ref PROJECT_NAME: String =
-        env!("CARGO_CRATE_NAME").to_uppercase().to_string();
-    pub static ref DATA_FOLDER: Option<PathBuf> =
-        std::env::var(format!("{}_DATA", PROJECT_NAME.clone()))
-            .ok()
-            .map(PathBuf::from);
-    pub static ref LOG_ENV: String =
-        format!("{}_LOGLEVEL", PROJECT_NAME.clone());
-    pub static ref LOG_FILE: String = format!("{}.log", env!("CARGO_PKG_NAME"));
-}
-
 fn project_directory() -> Option<ProjectDirs> {
     ProjectDirs::from("com", "jasoncheatham", env!("CARGO_PKG_NAME"))
 }
 
-pub fn get_data_dir() -> PathBuf {
-    if let Some(s) = DATA_FOLDER.clone() {
+pub fn get_data_dir(data_folder: Option<PathBuf>) -> PathBuf {
+    if let Some(s) = data_folder {
         s
     } else if let Some(proj_dirs) = project_directory() {
         proj_dirs.data_local_dir().to_path_buf()
@@ -34,17 +21,26 @@ pub fn get_data_dir() -> PathBuf {
 }
 
 pub fn initialize_logging() -> Result<(), std::io::Error> {
-    let directory = get_data_dir();
+    let project_name = env!("CARGO_CRATE_NAME").to_uppercase().to_string();
+    let data_folder = std::env::var(format!("{}_DATA", project_name))
+        .ok()
+        .map(PathBuf::from);
+    let log_env = format!("{}_LOGLEVEL", project_name);
+    let log_file = format!("{}.log", env!("CARGO_PKG_NAME"));
+
+    let directory = get_data_dir(data_folder);
     std::fs::create_dir_all(directory.clone())?;
-    let log_path = directory.join(LOG_FILE.clone());
+
+    let log_path = directory.join(log_file);
     let log_file = std::fs::File::create(log_path.clone())?;
+    let log_setting = std::env::var("RUST_LOG")
+        .or_else(|_| std::env::var(log_env))
+        .unwrap_or_else(|_| format!("{}=info", env!("CARGO_CRATE_NAME")));
+
     println!("Logging to: {:?}", log_path);
-    std::env::set_var(
-        "RUST_LOG",
-        std::env::var("RUST_LOG")
-            .or_else(|_| std::env::var(LOG_ENV.clone()))
-            .unwrap_or_else(|_| format!("{}=info", env!("CARGO_CRATE_NAME"))),
-    );
+    println!("Logging with {}", log_setting);
+
+    std::env::set_var("RUST_LOG", log_setting);
     let file_subscriber = tracing_subscriber::fmt::layer()
         .with_file(true)
         .with_line_number(true)

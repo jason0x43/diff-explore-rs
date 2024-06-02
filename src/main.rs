@@ -10,7 +10,6 @@ mod string;
 mod time;
 mod ui;
 mod views;
-mod widget;
 
 use app::App;
 use git::is_git_repo;
