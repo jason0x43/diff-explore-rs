@@ -37,9 +37,6 @@ pub fn initialize_logging() -> Result<(), std::io::Error> {
         .or_else(|_| std::env::var(log_env))
         .unwrap_or_else(|_| format!("{}=info", env!("CARGO_CRATE_NAME")));
 
-    println!("Logging to: {:?}", log_path);
-    println!("Logging with {}", log_setting);
-
     std::env::set_var("RUST_LOG", log_setting);
     let file_subscriber = tracing_subscriber::fmt::layer()
         .with_file(true)
