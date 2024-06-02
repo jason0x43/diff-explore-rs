@@ -64,10 +64,10 @@ pub fn git_log() -> Vec<Commit> {
         .stdout_str();
     let mut log = output
         .lines()
-        .map(|line| Commit::from_log_line(line))
+        .map(Commit::from_log_line)
         .collect::<Vec<Commit>>();
 
-    let hash_len = if let Some(c) = log.get(0) {
+    let hash_len = if let Some(c) = log.first() {
         c.commit_ref.len()
     } else {
         6
@@ -117,18 +117,12 @@ fn git_summary(commits: &DiffAction) -> String {
         cmd.arg("--staged");
     }
 
-    match &commits.anchor {
-        Some(h) => {
-            cmd.arg(h);
-        }
-        _ => {}
+    if let Some(h) = &commits.anchor {
+        cmd.arg(h);
     }
 
-    match &commits.target {
-        Target::REF(h) => {
-            cmd.arg(h);
-        }
-        _ => {}
+    if let Target::Ref(h) = &commits.target {
+        cmd.arg(h);
     }
 
     cmd.stdout_str()
@@ -162,7 +156,7 @@ pub fn git_diff_stat(
     let cmd = &mut Command::new("git");
 
     if action.is_show() {
-        if action.target == Target::STAGED || action.target == Target::UNSTAGED
+        if action.target == Target::Staged || action.target == Target::Unstaged
         {
             cmd.arg("diff");
         } else {
@@ -184,21 +178,21 @@ pub fn git_diff_stat(
     }
 
     match &action.target {
-        Target::STAGED | Target::UNSTAGED => {}
-        Target::REF(h) => {
+        Target::Staged | Target::Unstaged => {}
+        Target::Ref(h) => {
             cmd.arg(h);
         }
     }
 
     cmd.stdout_str()
         .lines()
-        .filter(|x| x.len() > 0)
-        .map(|x| Stat::new(x))
+        .filter(|x| !x.is_empty())
+        .map(Stat::new)
         .collect()
 }
 
 /// Return a diff for a specific file between two commits
-pub fn git_diff_file<'a>(
+pub fn git_diff_file(
     path: &str,
     old_path: &str,
     action: &DiffAction,
@@ -213,7 +207,7 @@ pub fn git_diff_file<'a>(
     command.current_dir(git_root());
 
     if action.is_show() {
-        if action.target == Target::STAGED || action.target == Target::UNSTAGED
+        if action.target == Target::Staged || action.target == Target::Unstaged
         {
             command.arg("diff");
         } else {
@@ -237,23 +231,17 @@ pub fn git_diff_file<'a>(
         command.arg("-w");
     }
 
-    match &action.anchor {
-        Some(h) => {
-            command.arg(h);
-        }
-        _ => {}
+    if let Some(h) = &action.anchor {
+        command.arg(h);
     }
 
-    match &action.target {
-        Target::REF(h) => {
-            command.arg(h);
-        }
-        _ => {}
+    if let Target::Ref(h) = &action.target {
+        command.arg(h);
     }
 
     command.arg("--").arg(path);
 
-    if old_path.len() > 0 {
+    if !old_path.is_empty() {
         command.arg(old_path);
     }
 
@@ -264,5 +252,5 @@ pub fn git_diff_file<'a>(
 
 /// Return true if there are changes across a range
 fn has_changes(commits: &DiffAction) -> bool {
-    git_summary(commits).len() > 0
+    !git_summary(commits).is_empty()
 }

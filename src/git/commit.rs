@@ -1,6 +1,6 @@
 use std::num::ParseIntError;
 
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 
 use super::commits::GitRef;
 use crate::time::RelativeTime;
@@ -21,7 +21,7 @@ impl Decoration {
         let mut head: Option<String> = None;
 
         let deco_str = deco.trim();
-        if deco_str.len() > 0 && deco_str.chars().nth(0) == Some('(') {
+        if !deco_str.is_empty() && deco_str.chars().nth(0) == Some('(') {
             deco_str[1..deco_str.len() - 1].split(", ").for_each(|d| {
                 if d.contains(" -> ") {
                     // branch has format "HEAD -> name"
@@ -29,7 +29,7 @@ impl Decoration {
                 } else if d.starts_with("tag: ") {
                     let tag = d.splitn(2, ": ").last().unwrap();
                     tags.push(tag.into());
-                } else if d.contains("/") {
+                } else if d.contains('/') {
                     refs.push(d.into());
                 } else {
                     branches.push(d.into());
@@ -53,7 +53,7 @@ pub struct Commit {
     pub decoration: Decoration,
     pub author_name: String,
     pub author_email: String,
-    pub timestamp: Option<NaiveDateTime>,
+    pub timestamp: Option<DateTime<Utc>>,
     pub subject: String,
 }
 
@@ -68,7 +68,7 @@ impl Commit {
         subject: String,
     ) -> Commit {
         let ts = if let Some(t) = timestamp {
-            NaiveDateTime::from_timestamp_opt(t.parse().unwrap(), 0)
+            DateTime::from_timestamp(t.parse().unwrap(), 0)
         } else {
             None
         };
@@ -93,18 +93,18 @@ impl Commit {
 
         Commit {
             commit_ref: GitRef::new(parts[0]),
-            parent_refs: if parts[1].len() > 0 {
+            parent_refs: if !parts[1].is_empty() {
                 GitRef::from_strs(
-                    parts[1].split(" ").collect::<Vec<&str>>().as_slice(),
+                    parts[1].split(' ').collect::<Vec<&str>>().as_slice(),
                 )
             } else {
                 vec![]
             },
-            decoration: Decoration::new(&parts[2]),
+            decoration: Decoration::new(parts[2]),
             author_name: parts[3].into(),
             author_email: parts[4].into(),
-            timestamp: if parts[5].len() > 0 {
-                NaiveDateTime::from_timestamp_opt(parts[5].parse().unwrap(), 0)
+            timestamp: if !parts[5].is_empty() {
+                DateTime::from_timestamp(parts[5].parse().unwrap(), 0)
             } else {
                 None
             },

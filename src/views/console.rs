@@ -144,7 +144,7 @@ fn get_messages() -> Vec<Message> {
 }
 
 fn get_num_lines() -> usize {
-    NUM_MESSAGE_LINES.lock().unwrap().clone()
+    *NUM_MESSAGE_LINES.lock().unwrap()
 }
 
 #[macro_export]

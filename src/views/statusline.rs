@@ -1,3 +1,5 @@
+use std::fmt;
+
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Rect},
@@ -19,10 +21,11 @@ impl Location {
     fn max_width(&self) -> u16 {
         (self.total.to_string().len() * 2 + 1) as u16
     }
+}
 
-    fn to_string(&self) -> String {
-        // position is 1-based
-        format!("{}/{}", self.pos + 1, self.total)
+impl fmt::Display for Location {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}/{}", self.pos + 1, self.total)
     }
 }
 
@@ -62,7 +65,7 @@ impl<'a> Widget for StatusLineView<'a> {
             _ => area.width,
         };
 
-        let status = Paragraph::new(format!("{}", self.statusline.status))
+        let status = Paragraph::new(self.statusline.status.to_string())
             .style(Style::default().bg(Color::Indexed(8)));
         Widget::render(
             status,
@@ -74,7 +77,7 @@ impl<'a> Widget for StatusLineView<'a> {
         );
 
         if let Some(loc) = &self.statusline.location {
-            let location = Paragraph::new(format!("{} ", loc.to_string()))
+            let location = Paragraph::new(format!("{} ", loc))
                 .alignment(Alignment::Right)
                 .style(
                     Style::default()

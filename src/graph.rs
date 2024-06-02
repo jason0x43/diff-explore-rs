@@ -25,10 +25,7 @@ pub struct CommitCell {
 impl CommitCell {
     fn new(parent: Option<&GitRef>, related: GitRef, track: Track) -> CommitCell {
         CommitCell {
-            parent: match parent {
-                Some(s) => Some(s.clone()),
-                _ => None,
-            },
+            parent: parent.cloned(),
             related,
             track,
         }
@@ -85,7 +82,7 @@ pub struct CommitGraph {
 //   │ │ ∙ │ fix(leadfoot): im
 
 impl CommitGraph {
-    pub fn new(commits: &Vec<Commit>) -> CommitGraph {
+    pub fn new(commits: &[Commit]) -> CommitGraph {
         // use a vector of open branches to preserve order
         let mut tracks: Vec<CommitCell> = vec![];
         let mut prev_tracks: Vec<CommitCell> = vec![];
@@ -101,8 +98,7 @@ impl CommitGraph {
                     // non-None tracks from the previous row
                     let temp_tracks: Vec<CommitCell> = tracks
                         .iter()
-                        .filter(|t| t.parent.is_some())
-                        .map(|t| t.clone())
+                        .filter(|t| t.parent.is_some()).cloned()
                         .collect();
 
                     tracks = vec![];
@@ -111,7 +107,7 @@ impl CommitGraph {
 
                     // add connections to the tracks in the previous row if
                     // things have shifted
-                    for i in 0..temp_tracks.len() {
+                    (0..temp_tracks.len()).for_each(|i| {
                         let pi = i + offset;
 
                         if let Some(prev_track) = prev_tracks.get(pi) {
@@ -167,7 +163,7 @@ impl CommitGraph {
                                 offset += x - i;
                             }
                         }
-                    }
+                    });
 
                     if let Some(x) = tracks
                         .iter()
@@ -215,10 +211,10 @@ impl CommitGraph {
                         // this commit's hash isn't in the tracks list -- create
                         // a new track for it
                         let hash = parent_hash_iter.next();
-                        if hash.is_some() {
+                        if let Some(hash) = hash {
                             tracks.push(CommitCell::new(
-                                hash,
-                                hash.unwrap().clone(),
+                                Some(hash),
+                                hash.clone(),
                                 Track::Node,
                             ));
                         }
@@ -233,7 +229,7 @@ impl CommitGraph {
                         ));
                     }
 
-                    prev_tracks = tracks.clone();
+                    prev_tracks.clone_from(&tracks);
 
                     CommitRow {
                         tracks: tracks.clone(),

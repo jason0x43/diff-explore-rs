@@ -136,13 +136,13 @@ pub fn highlight_spans<'a>(
 
         let parts = text.split(&hl_text.clone()).collect::<Vec<&str>>();
         let mut offset = 0;
-        for i in 0..parts.len() - 1 {
+        (0..parts.len() - 1).for_each(|i| {
             offset += parts[i].len();
-            for x in offset..offset + hl_text.len() {
+            (offset..offset + hl_text.len()).for_each(|x| {
                 styles[x] = &hl_style;
-            }
+            });
             offset += hl_text.len();
-        }
+        });
 
         let mut start = 0;
         let mut style = styles[0];

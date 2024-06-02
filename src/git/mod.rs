@@ -1,11 +1,11 @@
 mod commit;
 mod commits;
 mod diff;
-mod git;
+mod util;
 mod stat;
 
 pub use commit::Commit;
 pub use commits::{DiffAction, GitRef, Target};
 pub use diff::{DiffLine, FileDiff};
-pub use git::*;
+pub use util::*;
 pub use stat::Stat;

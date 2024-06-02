@@ -49,10 +49,7 @@ impl CommitFields {
                 .iter()
                 .map(|b| format!("[{}]", b))
                 .collect(),
-            head: match &deco.head {
-                Some(h) => Some(format!("[{}]", h)),
-                _ => None,
-            },
+            head: deco.head.as_ref().map(|h| format!("[{}]", h)),
             tags: deco.tags.iter().map(|b| format!("<{}>", b)).collect(),
             refs: deco.refs.iter().map(|b| format!("<{}>", b)).collect(),
             subject: c.subject.clone(),
@@ -63,9 +60,9 @@ impl CommitFields {
         self.hash.contains(query)
             || self.age.contains(query)
             || self.author.contains(query)
-            || self.branches.iter().find(|b| b.contains(query)).is_some()
-            || self.tags.iter().find(|b| b.contains(query)).is_some()
-            || self.refs.iter().find(|b| b.contains(query)).is_some()
+            || self.branches.iter().any(|b| b.contains(query))
+            || self.tags.iter().any(|b| b.contains(query))
+            || self.refs.iter().any(|b| b.contains(query))
             || (self.head.is_some()
                 && self.head.as_ref().unwrap().contains(query))
             || self.subject.contains(query)
@@ -112,19 +109,16 @@ impl CommitLog {
     pub fn get_selected(&self) -> Target {
         let r = &self.commits[self.cursor()].commit_ref;
         if r.is_staged() {
-            Target::STAGED
+            Target::Staged
         } else if r.is_unstaged() {
-            Target::UNSTAGED
+            Target::Unstaged
         } else {
-            Target::REF(r.clone())
+            Target::Ref(r.clone())
         }
     }
 
     pub fn get_marked(&self) -> Option<GitRef> {
-        match self.mark {
-            Some(m) => Some(self.commits[m].commit_ref.clone()),
-            _ => None,
-        }
+        self.mark.map(|m| self.commits[m].commit_ref.clone())
     }
 
     pub fn toggle_show_details(&mut self) {
@@ -228,9 +222,9 @@ const HALF_HLINE_CHAR: &str = "╶";
 const HLINE_CHAR: &str = "─";
 
 /// Get the color to be used for continuation lines in the graph
-fn get_commit_color<'a>(
+fn get_commit_color(
     hash: &GitRef,
-    colors: &'a mut HashMap<GitRef, Color>,
+    colors: &mut HashMap<GitRef, Color>,
 ) -> Color {
     if !colors.contains_key(hash) {
         colors
@@ -259,7 +253,7 @@ fn draw_graph<'a>(
     // drawn
     let mut draw_hline: Option<&GitRef> = None;
 
-    if node.tracks.len() == 0 {
+    if node.tracks.is_empty() {
         return graph;
     }
 
@@ -284,12 +278,7 @@ fn draw_graph<'a>(
                 None
             };
 
-            if node
-                .tracks
-                .iter()
-                .find(|t| t.track == Track::Merge)
-                .is_some()
-            {
+            if node.tracks.iter().any(|t| t.track == Track::Merge) {
                 graph.push(Span::from(BIG_BULLET_CHAR));
             } else {
                 graph.push(Span::from(BULLET_CHAR));
@@ -305,9 +294,9 @@ fn draw_graph<'a>(
             Track::Continue => {
                 if let Some(h) = draw_hline {
                     if node.tracks[i - 1].track == Track::Node {
-                        graph.push(draw_cell(&h, HALF_HLINE_CHAR, colors));
+                        graph.push(draw_cell(h, HALF_HLINE_CHAR, colors));
                     } else {
-                        graph.push(draw_cell(&h, HLINE_CHAR, colors));
+                        graph.push(draw_cell(h, HLINE_CHAR, colors));
                     }
                 } else if matches!(
                     node.tracks[i - 1].track,
@@ -325,22 +314,17 @@ fn draw_graph<'a>(
 
             Track::ContinueRight => {
                 if node.tracks[i - 1].track == Track::ContinueRight
-                    || node
-                        .tracks
-                        .iter()
-                        .skip(i)
-                        .find(|t| {
-                            t.parent == track.parent && t.track == Track::Branch
-                        })
-                        .is_some()
+                    || node.tracks.iter().skip(i).any(|t| {
+                        t.parent == track.parent && t.track == Track::Branch
+                    })
                 {
                     // this is an intermediate ContinueRight
                     let hash = &track.related;
-                    graph.push(draw_cell(&hash, HLINE_CHAR, colors));
-                    graph.push(draw_cell(&hash, HLINE_CHAR, colors));
+                    graph.push(draw_cell(hash, HLINE_CHAR, colors));
+                    graph.push(draw_cell(hash, HLINE_CHAR, colors));
                 } else {
                     if let Some(h) = draw_hline {
-                        graph.push(draw_cell(&h, HLINE_CHAR, colors));
+                        graph.push(draw_cell(h, HLINE_CHAR, colors));
                     } else {
                         graph.push(Span::from(SPACE_CHAR));
                     }
@@ -392,8 +376,7 @@ fn draw_graph<'a>(
                     .tracks
                     .iter()
                     .skip(i + 1)
-                    .find(|t| t.track == Track::Merge)
-                    .is_some()
+                    .any(|t| t.track == Track::Merge)
                 {
                     graph.push(Span::from(BIG_BULLET_CHAR));
                 } else {
@@ -422,16 +405,10 @@ fn draw_graph<'a>(
                 // There may be several Merges or Braches in a row, in
                 // which case the intermediate ones should be Ts, and the
                 // last one should be a corner
-                if node
-                    .tracks
-                    .iter()
-                    .skip(i + 1)
-                    .position(|p| {
-                        p.track == node.tracks[i].track
-                            && p.related == node.tracks[i].related
-                    })
-                    .is_some()
-                {
+                if node.tracks.iter().skip(i + 1).any(|p| {
+                    p.track == node.tracks[i].track
+                        && p.related == node.tracks[i].related
+                }) {
                     graph.push(draw_cell(&track.related, tee_char, colors));
                 } else {
                     graph.push(draw_cell(&track.related, corner_char, colors));
@@ -474,7 +451,7 @@ impl<'a> Widget for CommitsView<'a> {
             .commits
             .commits
             .iter()
-            .map(|c| CommitFields::new(c))
+            .map(CommitFields::new)
             .collect::<Vec<CommitFields>>();
 
         let author_width = min(

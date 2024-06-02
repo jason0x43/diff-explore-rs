@@ -125,7 +125,7 @@ impl App {
                 }
                 Key::Backspace => {
                     if let Some(q) = &mut self.search {
-                        if q.len() > 0 {
+                        if !q.is_empty() {
                             q.truncate(q.len() - 1);
                             self.search = Some(q.clone());
                         }
@@ -161,7 +161,7 @@ impl App {
                 },
                 _ => {}
             }
-        } else if self.pending_keys.len() > 0 {
+        } else if !self.pending_keys.is_empty() {
             let last_key = self.pending_keys.last().unwrap();
             match key {
                 Key::Char('G') => match last_key {
@@ -198,12 +198,11 @@ impl App {
                 Key::Char('1') => {
                     self.pending_keys.push(key);
                 }
-                Key::Char('l') => match self.views.top() {
-                    Some(View::CommitLog(v)) => {
+                Key::Char('l') => {
+                    if let Some(View::CommitLog(v)) = self.views.top() {
                         v.toggle_show_details();
                     }
-                    _ => {}
-                },
+                }
                 Key::Char('q') => match self.views.top() {
                     Some(View::CommitLog(_v)) => {
                         self.quit();
@@ -213,15 +212,8 @@ impl App {
                     }
                     Some(View::Diff(v)) => {
                         if let Ok(p) = v.path() {
-                            match self.events.unwatch_file(&p) {
-                                Err(e) => {
-                                    log!(
-                                        "Error unwatching {:?}: {}",
-                                        v.path(),
-                                        e
-                                    )
-                                }
-                                _ => {}
+                            if let Err(e) = self.events.unwatch_file(&p) {
+                                log!("Error unwatching {:?}: {}", v.path(), e)
                             }
                         }
                         self.views.pop();
@@ -350,15 +342,14 @@ impl App {
                     }
                 }
                 Key::Ctrl('c') => self.quit(),
-                Key::Char('d') => match self.views.top() {
-                    Some(View::CommitLog(v)) => {
+                Key::Char('d') => {
+                    if let Some(View::CommitLog(v)) = self.views.top() {
                         let selected = v.get_selected();
                         let marked = v.get_marked();
                         let action = DiffAction::diff(selected, marked);
                         self.views.push(View::Stats(Stats::new(action)));
                     }
-                    _ => {}
-                },
+                }
                 Key::Enter => match self.views.top() {
                     Some(View::CommitLog(v)) => {
                         let selected = v.get_selected();

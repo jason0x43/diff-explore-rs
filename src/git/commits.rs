@@ -10,7 +10,9 @@ pub struct GitRef {
 
 impl GitRef {
     pub fn new(ref_str: impl Into<String>) -> GitRef {
-        GitRef { ref_str: ref_str.into() }
+        GitRef {
+            ref_str: ref_str.into(),
+        }
     }
 
     pub fn from_strs(refs: &[&str]) -> Vec<GitRef> {
@@ -30,7 +32,7 @@ impl GitRef {
     }
 
     pub fn is_staged(&self) -> bool {
-        self.ref_str.starts_with("S")
+        self.ref_str.starts_with('S')
     }
 
     pub fn is_unstaged(&self) -> bool {
@@ -72,21 +74,21 @@ impl From<&str> for GitRef {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Target {
-    STAGED,
-    UNSTAGED,
-    REF(GitRef),
+    Staged,
+    Unstaged,
+    Ref(GitRef),
 }
 
 impl Display for Target {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         match self {
-            Self::STAGED => {
+            Self::Staged => {
                 write!(f, "STAGED")
             }
-            Self::UNSTAGED => {
+            Self::Unstaged => {
                 write!(f, "UNSTAGED")
             }
-            Self::REF(h) => {
+            Self::Ref(h) => {
                 write!(f, "{}", h)
             }
         }
@@ -95,8 +97,8 @@ impl Display for Target {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum DiffType {
-    DIFF,
-    SHOW,
+    Diff,
+    Show,
 }
 
 /// A set of commits that will be diffed or shown.
@@ -115,22 +117,18 @@ pub struct DiffAction {
 impl DiffAction {
     /// Describe a diff between two commits, or between the target and HEAD
     pub fn diff(target: Target, anchor: Option<GitRef>) -> DiffAction {
-        let mut diff_type = DiffType::DIFF;
-        match &anchor {
-            Some(a) => match &target {
-                Target::REF(t) => {
-                    if t == a {
-                        diff_type = DiffType::SHOW;
-                    }
+        let mut diff_type = DiffType::Diff;
+        if let Some(a) = &anchor {
+            if let Target::Ref(t) = &target {
+                if t == a {
+                    diff_type = DiffType::Show;
                 }
-                _ => {}
-            },
-            _ => {}
+            }
         };
         DiffAction {
             target,
             anchor,
-            diff_type
+            diff_type,
         }
     }
 
@@ -139,28 +137,28 @@ impl DiffAction {
         DiffAction {
             target,
             anchor: None,
-            diff_type: DiffType::SHOW,
+            diff_type: DiffType::Show,
         }
     }
 
     /// Describe a diff of the unstaged changes against the working directory
     pub fn unstaged() -> DiffAction {
-        DiffAction::diff(Target::UNSTAGED, None)
+        DiffAction::diff(Target::Unstaged, None)
     }
 
     /// Describe a diff of the staged changes against HEAD
     pub fn staged() -> DiffAction {
-        DiffAction::diff(Target::STAGED, None)
+        DiffAction::diff(Target::Staged, None)
     }
 
     /// This action involves the staging area
     pub fn has_staged(&self) -> bool {
-        self.target == Target::STAGED
+        self.target == Target::Staged
     }
 
     /// Is this a show (vs a diff) action
     pub fn is_show(&self) -> bool {
-        self.diff_type == DiffType::SHOW
+        self.diff_type == DiffType::Show
     }
 }
 

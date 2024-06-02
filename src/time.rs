@@ -1,4 +1,4 @@
-use chrono::{Datelike, NaiveDateTime, Timelike, Utc};
+use chrono::{DateTime, Datelike, Timelike, Utc};
 
 pub trait RelativeTime {
     /// Return a string describing the relative time between this timestamp and
@@ -6,7 +6,7 @@ pub trait RelativeTime {
     fn relative_time(&self) -> String;
 }
 
-impl RelativeTime for NaiveDateTime {
+impl RelativeTime for DateTime<Utc> {
     fn relative_time(&self) -> String {
         let now = Utc::now().naive_utc();
         if self.year() != now.year() {

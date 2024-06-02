@@ -28,7 +28,7 @@ pub struct Diff {
 
 impl Diff {
     pub fn new(stat: &Stat, range: &DiffAction) -> Diff {
-        let diff = git_diff_file(&stat.path, &stat.old_path, &range, None);
+        let diff = git_diff_file(&stat.path, &stat.old_path, range, None);
 
         Diff {
             diff,
@@ -162,7 +162,7 @@ impl LineRenderer {
         ];
 
         let search = if self.search.is_some()
-            && self.search.clone().unwrap().len() > 0
+            && !self.search.clone().unwrap().is_empty()
         {
             self.search.clone()
         } else {
@@ -212,7 +212,7 @@ impl<'a> Widget for DiffView<'a> {
                 .iter()
                 .enumerate()
                 .map(|(line_nr, line)| {
-                    if line.len() > 0 {
+                    if !line.is_empty() {
                         Line::from(match &diff.diff.line_meta[line_nr] {
                             DiffLine::Add(meta) => renderer
                                 .render(16, 7, 2, meta.old, meta.new, line),

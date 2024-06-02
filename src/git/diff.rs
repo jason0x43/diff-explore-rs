@@ -79,10 +79,10 @@ impl FileDiff {
             .map(|s| {
                 if s.starts_with("diff ") {
                     chunk_info = None;
-                    DiffLine::new_meta(&s)
+                    DiffLine::new_meta(s)
                 } else if s.starts_with("@@") {
-                    chunk_info = Some(ChunkInfo::new(&s));
-                    DiffLine::new_meta(&s)
+                    chunk_info = Some(ChunkInfo::new(s));
+                    DiffLine::new_meta(s)
                 } else if let Some(info) = &mut chunk_info {
                     let old = info.old;
                     let new = info.new;
@@ -94,15 +94,15 @@ impl FileDiff {
                             info.old += 1;
                         }
                     }
-                    DiffLine::new_line(&s, old, new)
+                    DiffLine::new_line(s, old, new)
                 } else if s.starts_with("---") {
                     old_path = s[4..].into();
-                    DiffLine::new_meta(&s)
+                    DiffLine::new_meta(s)
                 } else if s.starts_with("+++") {
                     path = s[4..].into();
-                    DiffLine::new_meta(&s)
+                    DiffLine::new_meta(s)
                 } else {
-                    DiffLine::new_meta(&s)
+                    DiffLine::new_meta(s)
                 }
             })
             .collect();

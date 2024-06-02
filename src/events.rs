@@ -92,22 +92,15 @@ impl Events {
 
         let watch_tx = tx.clone();
         let watcher = recommended_watcher(
-            move |res: Result<notify::Event, notify::Error>| match res {
-                Ok(event) => {
+            move |res: Result<notify::Event, notify::Error>| {
+                if let Ok(event) = res {
                     let evt = event.clone();
-                    match event.kind {
-                        EventKind::Modify(mod_kind) => match mod_kind {
-                            ModifyKind::Data(_) => {
-                                watch_tx
-                                    .send(AppEvent::FilesChanged(evt.paths))
-                                    .unwrap();
-                            }
-                            _ => {}
-                        },
-                        _ => {}
+                    if let EventKind::Modify(ModifyKind::Data(_)) = event.kind {
+                        watch_tx
+                            .send(AppEvent::FilesChanged(evt.paths))
+                            .unwrap();
                     }
                 }
-                _ => {}
             },
         )
         .unwrap();

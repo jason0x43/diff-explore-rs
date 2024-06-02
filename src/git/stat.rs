@@ -14,7 +14,7 @@ pub struct Stat {
 
 impl Stat {
     pub fn new(stat_line: &str) -> Stat {
-        let parts: Vec<&str> = stat_line.split("\t").collect();
+        let parts: Vec<&str> = stat_line.split('\t').collect();
         let adds: u32 = parts[0].parse().unwrap();
         let deletes: u32 = parts[1].parse().unwrap();
         let (path, old_path) = if parts[2].contains(" => ") {
