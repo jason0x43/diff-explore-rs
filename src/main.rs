@@ -3,6 +3,7 @@ mod events;
 mod git;
 mod graph;
 mod list;
+mod logging;
 mod search;
 mod stack;
 mod string;
@@ -19,6 +20,8 @@ use std::{
 };
 
 fn main() -> Result<(), io::Error> {
+    logging::initialize_logging()?;
+
     // Process command line arg
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
@@ -29,12 +32,12 @@ fn main() -> Result<(), io::Error> {
     if !is_git_repo() {
         println!("Not a git repo");
         exit(1);
-    } else {
-        println!("Is git repo");
     }
 
     // Initialize the app
     let mut app = App::new();
+
+    tracing::info!("Starting app");
 
     // Run the app
     app.start();

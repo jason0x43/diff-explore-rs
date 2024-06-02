@@ -48,10 +48,7 @@ fn draw(f: &mut Frame, app: &mut App) {
     let parts = Layout::default()
         .direction(Direction::Vertical)
         .constraints(constraints)
-        .split(Rect {
-            height: size.height - 1,
-            ..size
-        });
+        .split(size);
 
     let content_rect = parts[0];
     let search = app.entering_search();
