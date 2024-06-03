@@ -38,6 +38,7 @@ pub fn is_git_repo() -> bool {
 
 /// Return the absolute root directory of the current repo
 pub fn git_root() -> String {
+    // TODO: make this a lazy initialized static
     Command::new("git")
         .arg("rev-parse")
         .arg("--show-toplevel")

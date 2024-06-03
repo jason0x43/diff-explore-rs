@@ -346,11 +346,11 @@ impl App {
                                     )
                                 }
                                 _ => {
-                                    tracing::info!("Watching {:?}", stat.path(),)
+                                    tracing::info!("Watching {:?}", stat.path())
                                 }
                             }
                         } else {
-                            tracing::info!("Watching {:?}", stat.path(),)
+                            tracing::warn!("Error watching {:?}", stat)
                         }
                     }
                     _ => {}

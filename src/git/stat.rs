@@ -33,6 +33,8 @@ impl Stat {
     }
 
     pub fn path(&self) -> Result<PathBuf, std::io::Error> {
-        Path::new(&self.path).canonicalize()
+        let repo_root = crate::git::git_root();
+        let repo_path = format!("{}/{}", repo_root, self.path);
+        Path::new(&repo_path).canonicalize()
     }
 }
