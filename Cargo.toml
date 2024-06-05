@@ -14,6 +14,7 @@ tracing-error = "0.2.0"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 directories = "5.0.1"
+thiserror = "1.0.61"
 
 [[bin]]
 name = "de"

@@ -42,49 +42,56 @@ fn draw(f: &mut Frame, app: &mut App) {
     let content_rect = parts[0];
     let search = app.entering_search();
 
-    match app.views.top() {
+    match app.views.top_mut() {
         Some(View::CommitLog(v)) => {
             if let Some(s) = search {
                 app.statusline.set_status(search_status(s));
             } else {
                 app.statusline.set_status(v.status());
             }
+
             app.statusline.set_location(v.list_pos(), v.list_count());
             v.set_search(app.search.clone());
             f.render_widget(CommitsView::new(v), content_rect);
         }
+
         Some(View::Stats(v)) => {
             if let Some(s) = search {
                 app.statusline.set_status(search_status(s));
             } else {
                 app.statusline.set_status(v.status());
             }
+
             app.statusline.set_location(v.list_pos(), v.list_count());
             v.set_search(app.search.clone());
             f.render_widget(StatsView::new(v), content_rect);
         }
+
         Some(View::Diff(v)) => {
             if let Some(s) = search {
                 app.statusline.set_status(search_status(s));
             } else {
                 app.statusline.set_status(v.status());
             }
+
             app.statusline.set_location(v.list_pos(), v.list_count());
             v.set_search(app.search.clone());
+
             let w = DiffView::new(
                 v,
                 Some(DiffViewOpts {
                     tab_width: app.tab_width,
                 }),
             );
+
             f.render_widget(w, content_rect);
         }
+
         _ => {}
     };
 
-    let statusline = StatusLineView::new(&app.statusline);
     f.render_widget(
-        statusline,
+        StatusLineView::new(&app.statusline),
         Rect {
             x: 0,
             y: size.height - 1,
@@ -134,6 +141,7 @@ pub fn highlight_spans<'a>(
                 style = styles[i];
             }
         }
+
         new_spans.push(Span::styled(
             String::from(&text[start..text.len()]),
             *styles[text.len() - 1],

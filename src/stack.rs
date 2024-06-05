@@ -3,7 +3,8 @@ use std::collections::LinkedList;
 pub trait Stack<T> {
     fn push(&mut self, value: T);
     fn pop(&mut self) -> Option<T>;
-    fn top(&mut self) -> Option<&mut T>;
+    fn top(&self) -> Option<&T>;
+    fn top_mut(&mut self) -> Option<&mut T>;
 }
 
 impl<T> Stack<T> for LinkedList<T> {
@@ -15,7 +16,11 @@ impl<T> Stack<T> for LinkedList<T> {
         self.pop_back()
     }
 
-    fn top(&mut self) -> Option<&mut T> {
+    fn top(&self) -> Option<&T> {
+        self.back()
+    }
+
+    fn top_mut(&mut self) -> Option<&mut T> {
         self.back_mut()
     }
 }

@@ -179,6 +179,7 @@ dependencies = [
  "once_cell",
  "ratatui",
  "regex",
+ "thiserror",
  "tracing",
  "tracing-error",
  "tracing-subscriber",

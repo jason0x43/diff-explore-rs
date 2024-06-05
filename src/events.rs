@@ -11,6 +11,8 @@ use notify::{
     RecursiveMode, Watcher,
 };
 
+use crate::error::AppError;
+
 #[derive(Debug)]
 pub enum Key {
     Enter,
@@ -47,28 +49,35 @@ impl From<event::KeyEvent> for Key {
                 modifiers: event::KeyModifiers::CONTROL,
                 ..
             } => Key::Ctrl(c),
+
             KeyEvent {
                 code: KeyCode::Esc, ..
             } => Key::Escape,
+
             KeyEvent {
                 code: KeyCode::Backspace,
                 ..
             } => Key::Backspace,
+
             KeyEvent {
                 code: KeyCode::Enter,
                 ..
             } => Key::Enter,
+
             KeyEvent {
                 code: KeyCode::Up, ..
             } => Key::Up,
+
             KeyEvent {
                 code: KeyCode::Down,
                 ..
             } => Key::Down,
+
             KeyEvent {
                 code: KeyCode::Char(c),
                 ..
             } => Key::Char(c),
+
             _ => Key::Unknown,
         }
     }
@@ -87,7 +96,7 @@ pub struct Events {
 }
 
 impl Events {
-    pub fn new() -> Events {
+    pub fn new() -> Result<Events, AppError> {
         let (tx, rx) = mpsc::channel();
 
         let watch_tx = tx.clone();
@@ -99,14 +108,19 @@ impl Events {
                         tracing::debug!("files changed: {:?}", evt.paths);
                         watch_tx
                             .send(AppEvent::FilesChanged(evt.paths))
-                            .unwrap();
+                            .err()
+                            .map(|err| {
+                                tracing::error!(
+                                    "Error sending files changed event: {:?}",
+                                    err
+                                );
+                            });
                     }
                 }
             },
-        )
-        .unwrap();
+        )?;
 
-        Events { rx, tx, watcher }
+        Ok(Events { rx, tx, watcher })
     }
 
     pub fn start(&mut self) {
@@ -115,12 +129,13 @@ impl Events {
             if let Ok(event) = event::read() {
                 match event {
                     Event::Key(key) => {
-                        let key = Key::from(key);
-                        input_tx.send(AppEvent::Input(key)).unwrap();
+                        input_tx.send(AppEvent::Input(Key::from(key))).unwrap();
                     }
+
                     Event::Resize(_, _) => {
                         input_tx.send(AppEvent::Resize).unwrap();
                     }
+
                     _ => {}
                 }
             }

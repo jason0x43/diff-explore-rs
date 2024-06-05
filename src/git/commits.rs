@@ -1,26 +1,18 @@
 use std::{
     ffi::OsStr,
-    fmt::{Display, Error, Formatter},
+    fmt::{self, Display, Error, Formatter},
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GitRef {
-    ref_str: String,
-}
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct GitRef(String);
 
 impl GitRef {
-    pub fn new(ref_str: impl Into<String>) -> GitRef {
-        GitRef {
-            ref_str: ref_str.into(),
-        }
+    pub fn new(ref_str: impl Into<String>) -> Self {
+        Self(ref_str.into())
     }
 
     pub fn from_strs(refs: &[&str]) -> Vec<GitRef> {
-        let mut v = vec![];
-        for i in refs {
-            v.push(GitRef::new(*i));
-        }
-        v
+        refs.iter().map(|r| GitRef::new(*r)).collect()
     }
 
     pub fn unstaged(len: usize) -> GitRef {
@@ -32,37 +24,37 @@ impl GitRef {
     }
 
     pub fn is_staged(&self) -> bool {
-        self.ref_str.starts_with('S')
+        self.0.starts_with('S')
     }
 
     pub fn is_unstaged(&self) -> bool {
-        self.ref_str == "0".repeat(self.ref_str.len())
+        self.0 == "0".repeat(self.0.len())
     }
 
     pub fn len(&self) -> usize {
-        self.ref_str.len()
+        self.0.len()
     }
 
     pub fn contains(&self, query: &str) -> bool {
-        self.ref_str.contains(query)
+        self.0.contains(query)
     }
 }
 
-impl std::hash::Hash for GitRef {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.ref_str.hash(state)
+impl From<GitRef> for String {
+    fn from(value: GitRef) -> Self {
+        value.0
     }
 }
 
 impl Display for GitRef {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f, "{}", self.ref_str)
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
 impl AsRef<OsStr> for GitRef {
     fn as_ref(&self) -> &OsStr {
-        self.ref_str.as_ref()
+        self.0.as_ref()
     }
 }
 
@@ -82,15 +74,9 @@ pub enum Target {
 impl Display for Target {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         match self {
-            Self::Staged => {
-                write!(f, "STAGED")
-            }
-            Self::Unstaged => {
-                write!(f, "UNSTAGED")
-            }
-            Self::Ref(h) => {
-                write!(f, "{}", h)
-            }
+            Self::Staged => write!(f, "STAGED"),
+            Self::Unstaged => write!(f, "UNSTAGED"),
+            Self::Ref(h) => write!(f, "{}", h),
         }
     }
 }
@@ -125,6 +111,7 @@ impl DiffAction {
                 }
             }
         };
+
         DiffAction {
             target,
             anchor,

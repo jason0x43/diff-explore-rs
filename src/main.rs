@@ -1,4 +1,5 @@
 mod app;
+mod error;
 mod events;
 mod git;
 mod graph;
@@ -12,13 +13,14 @@ mod ui;
 mod views;
 
 use app::App;
+use error::AppError;
 use git::is_git_repo;
 use std::{
     env::{self, set_current_dir},
-    io, process::exit,
+    process::exit,
 };
 
-fn main() -> Result<(), io::Error> {
+fn main() -> Result<(), AppError> {
     logging::initialize_logging()?;
 
     // Process command line arg
@@ -34,7 +36,7 @@ fn main() -> Result<(), io::Error> {
     }
 
     // Initialize the app
-    let mut app = App::new();
+    let mut app = App::new()?;
 
     tracing::info!("Starting app");
 

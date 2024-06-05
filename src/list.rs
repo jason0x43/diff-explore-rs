@@ -20,8 +20,10 @@ impl ListData {
 pub trait ListInfo {
     /// Return the number of list items
     fn list_count(&self) -> usize;
+
     /// Return the current position in the list
     fn list_pos(&self) -> usize;
+
     /// Update the position in the list
     fn set_list_pos(&mut self, pos: usize);
 }

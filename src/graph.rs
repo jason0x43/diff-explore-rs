@@ -14,10 +14,12 @@ pub enum Track {
 pub struct CommitCell {
     /// the direct ancestor commit of the cell
     pub parent: Option<GitRef>,
+
     /// the commit that this cell is related to; transient cells (Merges,
     /// ContinueRights, etc.) will have `related` but not `hash`; any cell with
     /// a hash value should have `hash` == `related`
     pub related: GitRef,
+
     /// how the cell relates to the next row
     pub track: Track,
 }
