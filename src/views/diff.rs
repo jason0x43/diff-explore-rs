@@ -38,7 +38,7 @@ impl Diff {
             stat: stat.clone(),
             range: range.clone(),
             search: None,
-            show_line_numbers: true,
+            show_line_numbers: false,
         }
     }
 
