@@ -1,6 +1,7 @@
 # diff-explore
 
-A terminal program to explore git diffs (a port of jason0x43/diff-explore-go).
+A terminal program to explore git diffs (a port of
+https://github.com/jason0x43/diff-explore-go).
 
 ## Building
 
